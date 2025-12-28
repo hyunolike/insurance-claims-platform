@@ -1,6 +1,8 @@
 # 보험금 청구 자동화 시스템
-
 > 이벤트 기반 아키텍처로 보험금 청구부터 지급까지의 전 과정을 자동화하는 백엔드 시스템
+
+<img width="1118" height="267" alt="image" src="https://github.com/user-attachments/assets/9b8ab135-5656-4b84-9b94-63a00dc7db6f" />
+
 
 ## 프로젝트 개요
 
