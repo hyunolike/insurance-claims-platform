@@ -7,9 +7,36 @@ spring:
     url: jdbc:postgresql://localhost:5432/claim
     username: claim
     password: changeme
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  flyway:
+    enabled: true
   kafka:
     bootstrap-servers: localhost:9092
+    consumer:
+      group-id: claim-service
+      auto-offset-reset: earliest
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
 logging:
   level:
     root: INFO
     com.insurance.claim: DEBUG
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
