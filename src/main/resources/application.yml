@@ -1,0 +1,15 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: claim-automation
+  datasource:
+    url: jdbc:postgresql://localhost:5432/claim
+    username: claim
+    password: changeme
+  kafka:
+    bootstrap-servers: localhost:9092
+logging:
+  level:
+    root: INFO
+    com.insurance.claim: DEBUG

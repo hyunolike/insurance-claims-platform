@@ -227,7 +227,7 @@ erDiagram
 ### Core Stack
 | 영역 | 기술 | 선택 이유 |
 |------|------|-----------|
-| Language | Java 17 | 토스 표준 |
+| Language | Java 24 | 토스 표준 |
 | Framework | Spring Boot | 생태계, 안정성 |
 | Build | Gradle | 대규모 프로젝트 표준 |
 | DB | PostgreSQL | 금융권 선호, ACID 보장 |
@@ -279,7 +279,7 @@ toss/
 ## 시작하기
 
 ### 필수 요구사항
-- Java 17+
+- Java 24
 - Gradle 7.x+
 - Docker & Docker Compose (로컬 개발 환경)
 
@@ -287,8 +287,18 @@ toss/
 
 1. 인프라 실행 (Kafka, Redis, PostgreSQL)
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
+
+| 서비스 | 이미지 | 호스트 포트 | 비고 |
+|--------|--------|-------------|------|
+| PostgreSQL | `postgres:15-alpine` | 5432 | DB/USER/PASSWORD = `claim` / `claim` / `changeme` |
+| Redis | `redis:7-alpine` | 6379 | 기본 설정 |
+| Zookeeper | `confluentinc/cp-zookeeper:7.5.0` | 2181 | Kafka 의존성 |
+| Kafka | `confluentinc/cp-kafka:7.5.0` | 9092 (호스트), 29092 (컨테이너 간) | 애플리케이션은 `localhost:9092` 사용 |
+| Kafka UI | `provectuslabs/kafka-ui:latest` | 8081 | http://localhost:8081 |
+
+> `docker compose down -v`로 전체 리소스를 종료/정리할 수 있습니다.
 
 2. 애플리케이션 빌드
 ```bash
