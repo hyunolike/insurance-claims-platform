@@ -22,6 +22,27 @@
 - 개인정보 암호화 및 감사 로그 자동 기록
 - Observability 기반 실시간 모니터링
 
+### 개발 일정
+
+**프로젝트 기간**: 2025-12-28 ~ 2026-01-12 (16일)
+
+| Phase | 기간 | 완료일 | 주요 산출물 |
+|-------|------|--------|------------|
+| Phase 0 | 1일 | 2025-12-28 | 개발 환경 완성 |
+| Phase 1 | 3일 | 2025-12-31 | 청구 생성/조회 API |
+| Phase 2 | 2일 | 2026-01-02 | 이벤트 기반 구조 (동기) |
+| Phase 3 | 3일 | 2026-01-05 | Kafka 비동기 처리 |
+| Phase 4 | 4일 | 2026-01-09 | 심사 + 지급 자동화 (MVP) |
+| Phase 5 | 3일 | 2026-01-12 | 알림 + Observability |
+
+**주요 마일스톤**:
+- 🎯 **M1** (2025-12-31): 첫 API 완성 - `POST /claims`, `GET /claims/{id}`
+- 🎯 **M2** (2026-01-05): Kafka 비동기 이벤트 처리
+- 🎯 **M3** (2026-01-09): MVP 완성 - 청구 → 심사 → 지급 전체 흐름
+- 🎯 **M4** (2026-01-12): 전체 완성 - 알림, 감사, 모니터링
+
+자세한 일정은 [개발 계획서](docs/IMPLEMENTATION_PLAN.md), [WBS](docs/WBS.md) 참고
+
 ---
 
 ## 시스템 아키텍처
@@ -253,15 +274,18 @@ erDiagram
 
 ```
 toss/
-├── docs/                    # 문서
-│   ├── API.md              # API 명세
-│   ├── ERD.md              # 데이터베이스 설계
-│   ├── SEQUENCE.md         # 시퀀스 다이어그램
-│   ├── MVP-feature.md      # MVP 기능 범위
-│   ├── skillset.md         # 기술 스택
-│   ├── mindmap.md          # 시스템 구조 개요
-│   ├── SCAMPER.md          # 아이디어 도출
-│   └── SMART.md            # 프로젝트 목표
+├── docs/                         # 문서
+│   ├── IMPLEMENTATION_PLAN.md   # 구현 계획서 (기술적 의사결정, 리스크 관리)
+│   ├── WBS.md                   # 작업 분해 구조 (WBS, 일정, 체크리스트)
+│   ├── PACKAGE_STRUCTURE.md     # 패키지 구조 가이드
+│   ├── API.md                   # API 명세
+│   ├── ERD.md                   # 데이터베이스 설계
+│   ├── SEQUENCE.md              # 시퀀스 다이어그램
+│   ├── MVP-feature.md           # MVP 기능 범위
+│   ├── skillset.md              # 기술 스택
+│   ├── mindmap.md               # 시스템 구조 개요
+│   ├── SCAMPER.md               # 아이디어 도출
+│   └── SMART.md                 # 프로젝트 목표
 ├── src/
 │   ├── main/
 │   │   ├── java/
@@ -377,10 +401,18 @@ REDIS_PORT=6379
 
 ## 문서
 
+### 개발 계획
+- [구현 계획서 (IMPLEMENTATION_PLAN)](docs/IMPLEMENTATION_PLAN.md) - 구현 전략, 기술적 의사결정, 리스크 관리
+- [작업 분해 구조 (WBS)](docs/WBS.md) - Phase별 일정, Gantt Chart, 체크리스트
+- [패키지 구조 가이드 (PACKAGE_STRUCTURE)](docs/PACKAGE_STRUCTURE.md) - 레이어별 패키지 구조 및 예시 코드
+
+### 시스템 설계
 - [시스템 구조 개요](docs/mindmap.md)
 - [API 명세](docs/API.md)
 - [데이터베이스 설계](docs/ERD.md)
 - [시퀀스 다이어그램](docs/SEQUENCE.md)
+
+### 프로젝트 기획
 - [MVP 기능 범위](docs/MVP-feature.md)
 - [기술 스택 선정](docs/skillset.md)
 - [프로젝트 목표 (SMART)](docs/SMART.md)
