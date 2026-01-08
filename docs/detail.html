@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>청구 상세 — Insurance Claims</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="logo">Claims</h1>
+                <nav class="nav">
+                    <a href="index.html" class="nav-link">대시보드</a>
+                    <a href="create.html" class="nav-link">새 청구</a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Loading State -->
+            <div class="loading" id="loadingState">청구 정보를 불러오는 중...</div>
+
+            <!-- Detail Content -->
+            <div class="detail-container" id="detailContent" style="display: none;">
+                <!-- Back Button -->
+                <button class="back-button" onclick="window.location.href='index.html'">
+                    ← 목록으로
+                </button>
+
+                <!-- Hero Section -->
+                <section class="hero">
+                    <div class="hero-header">
+                        <h2 class="hero-title" id="claimNumber">CLM-00000000-00000</h2>
+                        <span class="status-badge" id="statusBadge">SUBMITTED</span>
+                    </div>
+                </section>
+
+                <!-- Detail Grid -->
+                <div class="detail-grid">
+                    <div class="detail-section">
+                        <h3 class="section-title">청구 정보</h3>
+                        <dl class="detail-list">
+                            <div class="detail-item">
+                                <dt class="detail-label">보험계약번호</dt>
+                                <dd class="detail-value" id="policyNumber">-</dd>
+                            </div>
+                            <div class="detail-item">
+                                <dt class="detail-label">청구금액</dt>
+                                <dd class="detail-value detail-value-amount" id="claimAmount">-</dd>
+                            </div>
+                            <div class="detail-item">
+                                <dt class="detail-label">발생일자</dt>
+                                <dd class="detail-value" id="incidentDate">-</dd>
+                            </div>
+                            <div class="detail-item">
+                                <dt class="detail-label">제출일시</dt>
+                                <dd class="detail-value" id="submittedAt">-</dd>
+                            </div>
+                        </dl>
+                    </div>
+
+                    <div class="detail-section">
+                        <h3 class="section-title">진행 상태</h3>
+                        <div class="status-timeline" id="statusTimeline">
+                            <div class="timeline-item">
+                                <div class="timeline-dot"></div>
+                                <div class="timeline-content">
+                                    <p class="timeline-status">제출됨</p>
+                                    <p class="timeline-date">2026-01-08</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Description Section -->
+                <div class="detail-section">
+                    <h3 class="section-title">청구사유</h3>
+                    <p class="detail-description" id="description">-</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p class="footer-text">© 2026 Insurance Claims System</p>
+        </footer>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script src="js/detail.js"></script>
+</body>
+</html>

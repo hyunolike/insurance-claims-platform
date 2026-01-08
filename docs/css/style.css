@@ -1,0 +1,647 @@
+/* ========================================
+   Editorial Insurance Claims UI
+   Typography-driven, minimal, confident
+   ======================================== */
+
+/* Reset & Base */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    /* Monochrome Palette */
+    --color-black: #0a0a0a;
+    --color-charcoal: #2a2a2a;
+    --color-gray: #6b6b6b;
+    --color-light-gray: #d4d4d4;
+    --color-off-white: #f5f5f5;
+    --color-white: #ffffff;
+
+    /* Accent - Single, intentional use */
+    --color-accent: #3a5a6a;
+
+    /* Status Colors - Muted, editorial */
+    --color-submitted: #6b7280;
+    --color-in-review: #3a5a6a;
+    --color-approved: #4a6b5a;
+    --color-rejected: #6b4a4a;
+    --color-paid: #2a4a3a;
+
+    /* Typography Scale */
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.5rem;
+    --font-size-2xl: 2rem;
+    --font-size-3xl: 3rem;
+    --font-size-4xl: 4rem;
+
+    /* Spacing */
+    --space-xs: 0.5rem;
+    --space-sm: 1rem;
+    --space-md: 1.5rem;
+    --space-lg: 2rem;
+    --space-xl: 3rem;
+    --space-2xl: 4rem;
+    --space-3xl: 6rem;
+
+    /* Layout */
+    --container-max: 1200px;
+    --content-max: 720px;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    font-size: var(--font-size-base);
+    line-height: 1.6;
+    color: var(--color-charcoal);
+    background-color: var(--color-white);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* ========================================
+   Layout
+   ======================================== */
+
+.container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.main {
+    flex: 1;
+    max-width: var(--container-max);
+    width: 100%;
+    margin: 0 auto;
+    padding: var(--space-2xl) var(--space-xl);
+}
+
+/* ========================================
+   Header
+   ======================================== */
+
+.header {
+    border-bottom: 1px solid var(--color-light-gray);
+    background-color: var(--color-white);
+}
+
+.header-content {
+    max-width: var(--container-max);
+    margin: 0 auto;
+    padding: var(--space-lg) var(--space-xl);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    font-size: var(--font-size-xl);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    color: var(--color-black);
+}
+
+.nav {
+    display: flex;
+    gap: var(--space-xl);
+}
+
+.nav-link {
+    font-size: var(--font-size-base);
+    font-weight: 400;
+    color: var(--color-gray);
+    text-decoration: none;
+    transition: color 0.2s ease;
+    position: relative;
+}
+
+.nav-link.active {
+    color: var(--color-black);
+}
+
+.nav-link:hover {
+    color: var(--color-black);
+}
+
+.nav-link.active::after {
+    content: '';
+    position: absolute;
+    bottom: -0.5rem;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background-color: var(--color-black);
+}
+
+/* ========================================
+   Hero Section
+   ======================================== */
+
+.hero {
+    margin-bottom: var(--space-3xl);
+}
+
+.hero-title {
+    font-size: var(--font-size-4xl);
+    font-weight: 300;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    color: var(--color-black);
+    margin-bottom: var(--space-sm);
+}
+
+.hero-subtitle {
+    font-size: var(--font-size-lg);
+    font-weight: 300;
+    color: var(--color-gray);
+    letter-spacing: -0.01em;
+}
+
+.hero-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+/* ========================================
+   Filter Bar
+   ======================================== */
+
+.filter-bar {
+    display: flex;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-2xl);
+    padding-bottom: var(--space-lg);
+    border-bottom: 1px solid var(--color-light-gray);
+}
+
+.filter-button {
+    padding: var(--space-xs) var(--space-md);
+    font-size: var(--font-size-sm);
+    font-weight: 400;
+    color: var(--color-gray);
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: -0.01em;
+}
+
+.filter-button:hover {
+    color: var(--color-black);
+}
+
+.filter-button.active {
+    color: var(--color-black);
+    background-color: var(--color-off-white);
+}
+
+/* ========================================
+   Claims List
+   ======================================== */
+
+.claims-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.claim-card {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: var(--space-lg);
+    padding: var(--space-lg) 0;
+    border-bottom: 1px solid var(--color-light-gray);
+    text-decoration: none;
+    color: inherit;
+    transition: opacity 0.2s ease;
+}
+
+.claim-card:hover {
+    opacity: 0.7;
+}
+
+.claim-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+
+.claim-number {
+    font-size: var(--font-size-xl);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    color: var(--color-black);
+}
+
+.claim-meta {
+    font-size: var(--font-size-sm);
+    color: var(--color-gray);
+}
+
+.claim-amount {
+    display: flex;
+    align-items: center;
+    font-size: var(--font-size-2xl);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    color: var(--color-black);
+}
+
+.claim-status {
+    display: flex;
+    align-items: center;
+}
+
+/* ========================================
+   Status Badge
+   ======================================== */
+
+.status-badge {
+    display: inline-block;
+    padding: var(--space-xs) var(--space-md);
+    font-size: var(--font-size-xs);
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-white);
+    background-color: var(--color-gray);
+}
+
+.status-badge.SUBMITTED {
+    background-color: var(--color-submitted);
+}
+
+.status-badge.IN_REVIEW {
+    background-color: var(--color-in-review);
+}
+
+.status-badge.APPROVED {
+    background-color: var(--color-approved);
+}
+
+.status-badge.REJECTED {
+    background-color: var(--color-rejected);
+}
+
+.status-badge.PAID {
+    background-color: var(--color-paid);
+}
+
+/* ========================================
+   Forms
+   ======================================== */
+
+.form-container {
+    max-width: var(--content-max);
+}
+
+.claim-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xl);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.form-label {
+    font-size: var(--font-size-sm);
+    font-weight: 400;
+    color: var(--color-gray);
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    font-size: var(--font-size-xs);
+    letter-spacing: 0.05em;
+}
+
+.form-input,
+.form-textarea {
+    padding: var(--space-md);
+    font-size: var(--font-size-lg);
+    font-weight: 300;
+    color: var(--color-black);
+    background-color: var(--color-white);
+    border: none;
+    border-bottom: 1px solid var(--color-light-gray);
+    transition: border-color 0.2s ease;
+    font-family: inherit;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+    outline: none;
+    border-bottom-color: var(--color-black);
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+    color: var(--color-light-gray);
+}
+
+.form-textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
+.input-wrapper {
+    position: relative;
+}
+
+.input-suffix {
+    position: absolute;
+    right: var(--space-md);
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: var(--font-size-lg);
+    color: var(--color-gray);
+    pointer-events: none;
+}
+
+.form-actions {
+    display: flex;
+    gap: var(--space-md);
+    justify-content: flex-end;
+    margin-top: var(--space-xl);
+}
+
+/* ========================================
+   Buttons
+   ======================================== */
+
+.button {
+    padding: var(--space-md) var(--space-xl);
+    font-size: var(--font-size-base);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.button-primary {
+    color: var(--color-white);
+    background-color: var(--color-black);
+}
+
+.button-primary:hover {
+    background-color: var(--color-charcoal);
+}
+
+.button-secondary {
+    color: var(--color-black);
+    background-color: transparent;
+    border: 1px solid var(--color-light-gray);
+}
+
+.button-secondary:hover {
+    background-color: var(--color-off-white);
+}
+
+.back-button {
+    padding: var(--space-sm) 0;
+    font-size: var(--font-size-base);
+    font-weight: 400;
+    color: var(--color-gray);
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    margin-bottom: var(--space-xl);
+    font-family: inherit;
+}
+
+.back-button:hover {
+    color: var(--color-black);
+}
+
+/* ========================================
+   Detail View
+   ======================================== */
+
+.detail-container {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3xl);
+    margin-bottom: var(--space-3xl);
+}
+
+.detail-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+.section-title {
+    font-size: var(--font-size-xs);
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-gray);
+}
+
+.detail-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+.detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+
+.detail-label {
+    font-size: var(--font-size-xs);
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-gray);
+}
+
+.detail-value {
+    font-size: var(--font-size-lg);
+    font-weight: 300;
+    color: var(--color-black);
+    letter-spacing: -0.01em;
+}
+
+.detail-value-amount {
+    font-size: var(--font-size-2xl);
+    letter-spacing: -0.02em;
+}
+
+.detail-description {
+    font-size: var(--font-size-lg);
+    font-weight: 300;
+    line-height: 1.8;
+    color: var(--color-charcoal);
+    letter-spacing: -0.01em;
+}
+
+/* ========================================
+   Status Timeline
+   ======================================== */
+
+.status-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+.timeline-item {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-md);
+}
+
+.timeline-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--color-black);
+    margin-top: 0.5rem;
+}
+
+.timeline-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+
+.timeline-status {
+    font-size: var(--font-size-base);
+    font-weight: 400;
+    color: var(--color-black);
+}
+
+.timeline-date {
+    font-size: var(--font-size-sm);
+    color: var(--color-gray);
+}
+
+/* ========================================
+   Success Message
+   ======================================== */
+
+.success-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--space-lg);
+    padding: var(--space-3xl) 0;
+    animation: fadeIn 0.3s ease;
+}
+
+.success-title {
+    font-size: var(--font-size-2xl);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    color: var(--color-black);
+}
+
+.success-text {
+    font-size: var(--font-size-lg);
+    color: var(--color-gray);
+}
+
+/* ========================================
+   Loading & Empty States
+   ======================================== */
+
+.loading {
+    padding: var(--space-3xl) 0;
+    text-align: center;
+    font-size: var(--font-size-lg);
+    font-weight: 300;
+    color: var(--color-gray);
+}
+
+.empty-state {
+    padding: var(--space-3xl) 0;
+    text-align: center;
+}
+
+.empty-title {
+    font-size: var(--font-size-2xl);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    color: var(--color-gray);
+    margin-bottom: var(--space-md);
+}
+
+.empty-text {
+    font-size: var(--font-size-base);
+    color: var(--color-gray);
+}
+
+/* ========================================
+   Footer
+   ======================================== */
+
+.footer {
+    border-top: 1px solid var(--color-light-gray);
+    background-color: var(--color-white);
+    margin-top: auto;
+}
+
+.footer-text {
+    max-width: var(--container-max);
+    margin: 0 auto;
+    padding: var(--space-lg) var(--space-xl);
+    font-size: var(--font-size-xs);
+    color: var(--color-gray);
+    text-align: center;
+}
+
+/* ========================================
+   Responsive
+   ======================================== */
+
+@media (max-width: 768px) {
+    .hero-title {
+        font-size: var(--font-size-3xl);
+    }
+
+    .detail-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-2xl);
+    }
+
+    .claim-card {
+        grid-template-columns: 1fr;
+        gap: var(--space-md);
+    }
+
+    .filter-bar {
+        flex-wrap: wrap;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .nav {
+        gap: var(--space-md);
+    }
+}
