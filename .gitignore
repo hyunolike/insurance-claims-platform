@@ -146,3 +146,7 @@ replay_pid*
 # Gradle
 .gradle/
 build/
+
+# Claude Code personal configuration
+.claude/
+claude.local.md
