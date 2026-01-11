@@ -148,4 +148,5 @@ replay_pid*
 build/
 
 # Claude Code personal configuration
+.claude/
 claude.local.md
