@@ -1,163 +1,202 @@
-# CLAUDE.MD - Insurance Claim Automation System
+# CLAUDE.md
 
-> Project context and guidelines for AI-assisted development with Claude Code
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
-**보험금 청구 자동화 시스템** - Event-driven backend system automating insurance claim processing from submission to disbursement.
+Insurance claim automation system - Event-driven backend automating claim processing from submission to disbursement.
 
-- **Language**: Java 24
-- **Framework**: Spring Boot
-- **Architecture**: Event-driven with Kafka, Redis caching, PostgreSQL persistence
+- **Stack**: Java 21, Spring Boot 3.x, PostgreSQL 15, Kafka 7.5, Redis 7
+- **Architecture**: DDD with hexagonal architecture, event-driven messaging
 - **Timeline**: 2025-12-28 ~ 2026-01-12 (16 days)
-- **Current Phase**: Phase 1 Complete - Claim Create/Query APIs implemented
+- **Current Phase**: Phase 1 Complete (Claim Create/Query APIs implemented)
 
-## Project Structure
+## Build & Run Commands
 
-```
-toss/
-├── src/main/java/com/insurance/claim/
-│   ├── api/              # REST API Controllers & DTOs
-│   ├── application/      # Application Services & Business Logic
-│   ├── domain/           # Domain Models, VOs, Repositories (interfaces)
-│   ├── infrastructure/   # Adapters (JPA, Kafka, Redis)
-│   └── config/           # Spring Configuration
-├── src/test/java/        # Unit & Integration Tests
-├── docs/                 # Architecture & Planning Documents
-└── docker-compose.yml    # Local infrastructure (Kafka, Redis, PostgreSQL)
-```
-
-### Layer Responsibilities
-
-- **api**: Controllers, request/response DTOs, exception handlers
-- **application**: Service layer, use case orchestration, DTO mappers
-- **domain**: Core business entities, value objects, repository interfaces (DDD)
-- **infrastructure**: Implementation of domain repositories, external integrations
-
-## Tech Stack
-
-| Category | Technology | Port/Details |
-|----------|-----------|--------------|
-| Language | Java 24 | - |
-| Framework | Spring Boot 3.x | - |
-| Database | PostgreSQL 15 | 5432 |
-| Cache | Redis 7 | 6379 |
-| Messaging | Apache Kafka 7.5 | 9092 |
-| ORM | Spring Data JPA | - |
-| Build | Gradle 7.x | - |
-| Testing | JUnit 5, Mockito | - |
-
-## Development Environment
-
-### Running Infrastructure
-
+### Infrastructure
 ```bash
 # Start all services (Kafka, Redis, PostgreSQL)
 docker compose up -d
 
 # Stop and clean up
 docker compose down -v
+
+# Kafka UI: http://localhost:8081
+# PostgreSQL: localhost:5432, DB/User/Password: claim/claim/changeme
 ```
 
-### Database Credentials
-- Host: localhost:5432
-- Database: `claim`
-- Username: `claim`
-- Password: `changeme`
-
-### Kafka
-- Bootstrap: localhost:9092
-- UI: http://localhost:8081
-
 ### Application
-
 ```bash
 # Build
 ./gradlew clean build
 
-# Run
+# Run application
 ./gradlew bootRun
 
-# Test
+# Run all tests
 ./gradlew test
+
+# Run specific test class
+./gradlew test --tests com.insurance.claim.domain.model.ClaimTest
+
+# Run specific test method
+./gradlew test --tests com.insurance.claim.domain.model.ClaimTest.testClaimCreation
 ```
 
-## Current Implementation Status
+## Architecture Principles
 
-### ✅ Phase 1 Complete (M1: 2025-12-31)
-- [x] Domain model: Claim, ClaimStatus, Value Objects (Money, ClaimNumber)
-- [x] JPA infrastructure with ClaimEntity and ClaimJpaRepository
-- [x] Application service: ClaimService
-- [x] REST API: POST /claims, GET /claims/{id}
-- [x] Basic logging with RequestResponseLoggingAspect
-- [x] Unit tests for domain and service layers
+### DDD Layered Architecture
+The codebase follows strict DDD principles with clear layer separation:
 
-### Current Architecture Highlights
+```
+api → application → domain ← infrastructure
+```
 
-**Domain Layer** (DDD):
-- `Claim`: Aggregate root with business logic
-- `ClaimNumber`: Value object with auto-generation (CLM-YYYYMMDD-XXXXX)
-- `Money`: Value object for currency handling
-- `ClaimStatus`: Enum (SUBMITTED, IN_REVIEW, APPROVED, REJECTED, PAID)
+**Critical Rules:**
+1. **Domain layer is pure** - No dependencies on Spring, JPA, or infrastructure
+2. **Infrastructure adapts to domain** - Domain defines interfaces (e.g., `ClaimRepository`), infrastructure implements them (e.g., `ClaimRepositoryAdapter`)
+3. **No circular dependencies** - Dependencies flow inward toward domain
+4. **Business logic lives in domain** - `Claim` aggregate contains state transition logic, not services
 
-**API Endpoints**:
-- `POST /claims`: Create new claim
-- `GET /claims/{id}`: Query claim by ID
+### Layer Responsibilities
 
-### 🚧 Upcoming Phases
+**api/** - REST controllers, DTOs, exception handlers
+- `ClaimController`: HTTP endpoints
+- `request/`: API request DTOs with validation
+- `response/`: API response DTOs
+- `ApiExceptionHandler`: Global exception handling
 
-**Phase 2** (Target: 2026-01-02): Event-driven structure (synchronous)
-- Domain events for state transitions
-- Event sourcing foundation
+**application/** - Use case orchestration, transaction boundaries
+- `ClaimService`: Orchestrates domain operations, manages transactions
+- `ClaimMapper`: Maps between API DTOs and domain models
+- No business logic here - delegate to domain
 
-**Phase 3** (Target: 2026-01-05): Kafka async processing
-- Event publisher/consumer setup
-- claim.requested, claim.reviewed events
+**domain/** - Core business logic (framework-agnostic)
+- `model/Claim`: Aggregate root with business rules
+- `vo/`: Value objects (`ClaimNumber`, `Money`)
+- `repository/`: Repository interfaces (implemented by infrastructure)
+- `ClaimStatus`: Domain enum (SUBMITTED, IN_REVIEW, APPROVED, REJECTED, PAID)
 
-**Phase 4** (Target: 2026-01-09): Review + Payment automation (MVP)
-- Rule Engine service
-- Payment service
-- Full claim → review → payment flow
+**infrastructure/** - External system adapters
+- `persistence/claim/ClaimEntity`: JPA entity (separate from domain `Claim`)
+- `persistence/claim/ClaimJpaRepository`: Spring Data JPA repository
+- `persistence/claim/ClaimRepositoryAdapter`: Implements domain `ClaimRepository` interface
+- Note: Domain model and JPA entity are separate - adapter maps between them
 
-**Phase 5** (Target: 2026-01-12): Notification + Observability
-- Notification service
-- Metrics (Prometheus), distributed tracing
+**config/** - Spring configuration
+- `logging/RequestResponseLoggingAspect`: AOP-based API logging
 
-## Key Documentation
+### Key Architectural Patterns
 
-- [README.md](README.md): High-level project overview
-- [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md): Technical decisions, risk management
-- [docs/WBS.md](docs/WBS.md): Detailed work breakdown, Gantt chart
-- [docs/PACKAGE_STRUCTURE.md](docs/PACKAGE_STRUCTURE.md): Layer-by-layer structure guide
-- [docs/API.md](docs/API.md): API specifications
-- [docs/ERD.md](docs/ERD.md): Database schema
-- [docs/SEQUENCE.md](docs/SEQUENCE.md): Sequence diagrams
+1. **Aggregate Pattern**: `Claim` is an aggregate root managing its own state transitions
+2. **Value Objects**: `ClaimNumber` (auto-generated: CLM-YYYYMMDD-XXXXX), `Money` (encapsulates currency)
+3. **Repository Pattern**: Domain defines interface, infrastructure implements
+4. **Adapter Pattern**: `ClaimRepositoryAdapter` translates between `Claim` and `ClaimEntity`
+
+## Development Workflow
+
+### Adding New Features (Follow This Order)
+
+1. **Start with Domain**
+   - Define domain model in `domain/model/`
+   - Create repository interface in `domain/repository/`
+   - Write domain unit tests (no Spring context needed)
+
+2. **Implement Infrastructure**
+   - Create JPA entity in `infrastructure/persistence/`
+   - Implement repository adapter
+   - Write integration tests
+
+3. **Add Application Service**
+   - Create service method in `application/service/`
+   - Add DTO mapper in `application/dto/`
+   - Write service tests with mocked repositories
+
+4. **Expose via API**
+   - Define request/response DTOs in `api/dto/`
+   - Implement controller in `api/controller/`
+   - Write API integration tests
+
+### Example: Adding a New Entity
+
+```bash
+# 1. Domain layer (pure Java)
+src/main/java/com/insurance/claim/domain/model/Payment.java
+src/main/java/com/insurance/claim/domain/repository/PaymentRepository.java
+src/test/java/com/insurance/claim/domain/model/PaymentTest.java
+
+# 2. Infrastructure layer
+src/main/java/com/insurance/claim/infrastructure/persistence/payment/PaymentEntity.java
+src/main/java/com/insurance/claim/infrastructure/persistence/payment/PaymentJpaRepository.java
+src/main/java/com/insurance/claim/infrastructure/persistence/payment/PaymentRepositoryAdapter.java
+
+# 3. Application layer
+src/main/java/com/insurance/claim/application/service/PaymentService.java
+src/main/java/com/insurance/claim/application/dto/PaymentMapper.java
+
+# 4. API layer
+src/main/java/com/insurance/claim/api/controller/PaymentController.java
+src/main/java/com/insurance/claim/api/dto/request/PaymentRequest.java
+src/main/java/com/insurance/claim/api/dto/response/PaymentResponse.java
+```
+
+## Event-Driven Architecture (Upcoming)
+
+The system is being built with event-driven architecture in mind:
+
+**Event Flow**: `claim.requested → claim.reviewed → claim.approved → claim.disbursed`
+
+**Implementation Phases:**
+- Phase 2 (Next): Domain events with Spring Events (synchronous)
+- Phase 3: Kafka async processing
+- Phase 4: Rule Engine + Payment automation
+
+**When implementing events:**
+1. Define domain event in `domain/event/` (to be created)
+2. Publish from aggregate root
+3. Configure Kafka topic in `application.yml`
+4. Implement publisher in `infrastructure/messaging/`
 
 ## Design Principles
 
-### Event-Driven Architecture
-- All state changes publish events
-- Loose coupling between services
-- Fault isolation and independent deployment
-
 ### Idempotency
 - API calls must be safe for retries
-- Use optimistic locking (If-Match headers)
-- Kafka message reprocessing safety
+- Use optimistic locking with `If-Match` headers
+- Design for Kafka message reprocessing
 
-### Data Protection
+### Security & Data Protection
 - Encrypt sensitive personal data
+- Use business identifiers (e.g., `ClaimNumber`) in API responses, never internal database IDs
 - Audit logging for all operations
-- Minimal access privileges
 
 ### Observability
 - Every API response includes `traceId`
 - Distributed tracing across services
-- Real-time SMART metrics monitoring
+- Log at appropriate levels (DEBUG for `com.insurance.claim`, INFO for root)
 
-## Coding Conventions
+## Testing Strategy
 
-### Commit Messages
+### Unit Tests (Domain Layer)
+- Pure Java tests, no Spring context
+- 100% coverage goal for domain logic
+- Example: `ClaimTest`, `MoneyTest`, `ClaimNumberTest`
+
+### Integration Tests (API Layer)
+- Full Spring Boot context
+- Test controllers with `@SpringBootTest`
+- Example: `ClaimServiceTest`
+
+### Test Naming Convention
+```java
+@Test
+void shouldCreateClaimWithValidData() { ... }
+
+@Test
+void shouldThrowExceptionWhenAmountIsNegative() { ... }
+```
+
+## Commit Conventions
+
 ```
 <type>: <description>
 
@@ -170,57 +209,34 @@ Types:
 - chore: Build/dependency maintenance
 ```
 
-### Package Naming
-- Follow existing structure: `com.insurance.claim.<layer>.<feature>`
-- Keep layer boundaries clean (no circular dependencies)
-- Domain layer must not depend on infrastructure
+## Important Documentation
 
-### Testing
-- Unit tests for domain logic (100% coverage goal)
-- Integration tests for API endpoints
-- Use test fixtures and builders for readability
+Consult these files before major changes:
+- `docs/IMPLEMENTATION_PLAN.md`: Technical decisions, risk management, phase-by-phase strategy
+- `docs/WBS.md`: Detailed work breakdown, Gantt chart, current sprint status
+- `docs/PACKAGE_STRUCTURE.md`: Layer-by-layer structure with code examples
+- `docs/API.md`: API specifications
+- `docs/ERD.md`: Database schema
+- `docs/SEQUENCE.md`: Sequence diagrams
 
-## Common Tasks
+## Current Implementation Status
 
-### Adding a New API Endpoint
-1. Define request/response DTOs in `api/dto/`
-2. Implement controller in `api/controller/`
-3. Add service method in `application/service/`
-4. Update domain if needed
-5. Write integration tests
+### Completed (Phase 1)
+- Domain model: `Claim`, `ClaimStatus`, `Money`, `ClaimNumber`
+- JPA infrastructure: `ClaimEntity`, `ClaimJpaRepository`, `ClaimRepositoryAdapter`
+- Application service: `ClaimService`
+- REST API: `POST /claims`, `GET /claims/{id}`
+- AOP logging: `RequestResponseLoggingAspect`
+- Unit tests for domain and service layers
 
-### Adding a New Domain Entity
-1. Create entity in `domain/model/`
-2. Define repository interface in `domain/repository/`
-3. Implement JPA entity in `infrastructure/persistence/`
-4. Implement repository adapter
-5. Write unit tests
+### API Endpoints
+```
+POST /claims          - Create new claim
+GET /claims/{id}      - Query claim by ID
+GET /health           - Health check
+```
 
-### Adding Kafka Event
-1. Define event class in `domain/event/` (to be created)
-2. Configure Kafka topic in application.yml
-3. Implement publisher in `infrastructure/messaging/`
-4. Implement consumer if needed
-5. Test with Kafka UI (localhost:8081)
-
-## Important Notes for Claude Code
-
-1. **Follow DDD principles**: Keep domain pure, infrastructure adapts to domain
-2. **Maintain layer separation**: API → Application → Domain ← Infrastructure
-3. **Write tests first**: Domain tests → Service tests → API tests
-4. **Use existing patterns**: Follow ClaimService, ClaimController examples
-5. **Check documentation**: Consult docs/ before major changes
-6. **Event-driven mindset**: Think in terms of events for state changes
-7. **Security**: Never expose internal IDs in API responses, use business identifiers
-
-## Contact & Resources
-
-- **Project Tracking**: See docs/WBS.md for current sprint status
-- **Architecture Questions**: Refer to docs/IMPLEMENTATION_PLAN.md
-- **API Design**: Follow patterns in docs/API.md
-
----
-
-**Last Updated**: 2026-01-04
-**Current Branch**: nostalgic-germain
-**Project Phase**: Phase 1 Complete, Preparing Phase 2
+### Next Phase (Phase 2)
+- Domain events for state transitions
+- Event sourcing foundation
+- Synchronous event handling with Spring Events
