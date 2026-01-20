@@ -25,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 @ActiveProfiles("test")
 @DisplayName("청구 도메인 이벤트 통합 테스트")
+@org.springframework.context.annotation.Import(ClaimEventIntegrationTest.TestEventCollector.class)
 class ClaimEventIntegrationTest {
 
     @Autowired

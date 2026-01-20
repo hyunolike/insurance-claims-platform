@@ -29,6 +29,7 @@ class ClaimTest {
     @Test
     void approve_shouldChangeStatusWhenPending() {
         Claim claim = createPendingClaim();
+        claim.assignId(1L); // ID 할당 (DB 저장 시뮬레이션)
 
         claim.approve();
 
@@ -38,6 +39,7 @@ class ClaimTest {
     @Test
     void approve_shouldRejectWhenAlreadyApproved() {
         Claim claim = createPendingClaim();
+        claim.assignId(1L);
         claim.approve();
 
         assertThatThrownBy(claim::approve)
@@ -47,6 +49,7 @@ class ClaimTest {
     @Test
     void markPaid_shouldRequireApprovedStatus() {
         Claim claim = createPendingClaim();
+        claim.assignId(1L);
 
         assertThatThrownBy(claim::markPaid).isInstanceOf(IllegalStateException.class);
 
