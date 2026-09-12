@@ -47,38 +47,75 @@ flowchart LR
 
 ---
 
-## Phase 0 — 양쪽 골격
+## Phase 0 — 양쪽 골격 ✅ 구현 완료
 
 **목표: 코드 한 줄 쓰기 전에, 잘못된 코드가 머지될 수 없는 상태를 만든다.**
 
 ### 작업
 
-| # | 레포 | 작업 |
-|---|---|---|
-| 0-1 | 둘 다 | Gradle 멀티모듈 골격 (§[`07-architecture.md`](07-architecture.md) §2) |
-| 0-2 | 둘 다 | `domain` 모듈에 Spring 의존성 없음 확인 |
-| 0-3 | 둘 다 | ArchUnit 규칙 작성 + 통과 |
-| 0-4 | 둘 다 | Testcontainers 베이스 클래스 (PostgreSQL + Flyway 실행) |
-| 0-5 | 둘 다 | GitHub Actions CI (build, arch, coverage gate, gitleaks) |
-| 0-6 | 둘 다 | jacoco `violationRules` 설정 |
-| 0-7 | 둘 다 | `main`/`develop` 브랜치 생성 + 보호 규칙 |
-| 0-8 | 둘 다 | `compose.yaml` (KRaft Kafka, healthcheck 포함) |
-| 0-9 | 둘 다 | 설정 외부화 (`${}` 플레이스홀더, `.env.example`) |
-| 0-10 | 둘 다 | Spring Security 스켈레톤 (인증 없이 시작하지 않는다) |
+| # | 레포 | 작업 | 상태 |
+|---|---|---|---|
+| 0-1 | 둘 다 | Gradle 멀티모듈 골격 ([`07-architecture.md`](07-architecture.md) §2) | ✅ |
+| 0-2 | 둘 다 | `domain` 모듈에 Spring 의존성 없음 | ✅ |
+| 0-3 | 둘 다 | ArchUnit 규칙 작성 + 통과 | ✅ |
+| 0-4 | 둘 다 | Testcontainers 베이스 (PostgreSQL + Flyway 실행) | ✅ |
+| 0-5 | 둘 다 | GitHub Actions CI (build, arch, coverage gate, gitleaks) | ✅ |
+| 0-6 | 둘 다 | jacoco `violationRules` 설정 | ✅ |
+| 0-7 | 둘 다 | `main`/`develop` 브랜치 + 보호 규칙 | ⚠️ 수동 설정 필요 |
+| 0-8 | 둘 다 | `compose.yaml` (KRaft Kafka, healthcheck 포함) | ✅ |
+| 0-9 | 둘 다 | 설정 외부화 (`${}` 플레이스홀더, `.env.example`) | ✅ |
+| 0-10 | 둘 다 | Spring Security 스켈레톤 | ✅ |
+| 0-11 | 둘 다 | Outbox 기반 (테이블 + `OutboxAppender` 포트/어댑터) | ✅ |
 
-### 완료 조건
+### 완료 조건 — 검증 결과
 
 ```
-□ ./gradlew build 통과
-□ ArchUnit: domain이 Spring을 참조하면 빌드 실패함을 실제로 확인
-□ Testcontainers로 Flyway 마이그레이션이 실행됨을 확인
-□ CI가 PR에서 동작하고, 커버리지 미달 시 실패함을 확인
-□ main 브랜치 존재, 직접 푸시 차단 확인
-□ 비밀값 미설정 시 앱 기동 실패 확인
+☑ ./gradlew build 통과
+      claims-platform  : 59건 통과 / 실패 0
+      business-support : 73건 통과 / 실패 0
+
+☑ 도메인이 Spring을 참조하면 빌드가 실패한다  ← 실제로 확인함
+      1차 방어선(Gradle): domain 모듈에 @Component 를 넣자 컴파일 단계에서 실패
+          error: package org.springframework.stereotype does not exist
+      2차 방어선(ArchUnit): application 계층에 ApplicationEventPublisher 주입을 넣자
+          '애플리케이션은_스프링_이벤트퍼블리셔를_쓰지_않는다' 규칙이 위반 3건을 잡고 빌드 실패
+      → v1을 무너뜨린 바로 그 코드가 이제 머지될 수 없다
+
+☑ Testcontainers + Flyway 검증 테스트 작성
+      FlywayMigrationTest, OutboxAppenderIntegrationTest
+      Docker가 있는 환경(CI)에서 실행되고, 없으면 실패가 아니라 skip 된다
+      (@Testcontainers(disabledWithoutDocker = true))
+      ※ 설계 시점 로컬 환경에 Docker 데몬이 없어 실제 실행은 CI 첫 구동 시 확인 필요
+
+☑ 커버리지 게이트가 동작한다
+      claims-domain  : line 99.1% / branch 98%  (기준 90% / 85%)
+      policy-domain  : line 99.1% / branch 99%  (기준 90% / 85%)
+      → v1 실측은 line 68% / branch 22%였다
+
+☑ 비밀값에 기본값이 없다
+      DB_PASSWORD, CLAIMS_ENCRYPTION_KEY 미설정 시 기동 실패
+
+☐ main 브랜치 + 보호 규칙  ← GitHub 저장소 설정에서 수동 적용 필요
+      · main 브랜치 생성
+      · main/develop 직접 푸시 차단
+      · PR 필수 상태 검사: verify, secret-scan
 ```
 
 > **0-3, 0-4가 이 단계의 핵심이다.** v1이 실패한 지점을 구조적으로 막는 작업이라
 > 여기서 타협하면 나머지가 다시 무너진다.
+
+### Phase 0에서 실제로 잡힌 것
+
+골격을 짜는 동안 안전장치가 두 번 일했다. 기록해 둘 만하다.
+
+1. **ArchUnit이 검사 대상을 0개로 잡고 있었다.**
+   `ImportOption.DoNotIncludeJars`가 형제 모듈의 JAR까지 걸러내서, 모든 규칙이
+   "검사할 클래스 없음"으로 조용히 통과할 뻔했다. `검사_대상이_비어있지_않다`
+   안전장치 테스트가 이걸 잡았다. **규칙이 통과하는 것과 검사할 대상이 없는 것은 다르다.**
+
+2. **빈 모듈이 레이어 규칙을 깨뜨렸다.**
+   `claims-rules`가 Phase 3까지 비어 있는데 ArchUnit은 빈 레이어를 위반으로 본다.
+   `withOptionalLayers(true)` + `allowEmptyShould(true)`로 "아직 비어 있음"을 명시했다.
 
 ---
 

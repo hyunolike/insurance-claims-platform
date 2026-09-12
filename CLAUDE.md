@@ -9,7 +9,7 @@ Claude Code(claude.ai/code)가 이 저장소에서 작업할 때 참고하는 �
 - 짝 저장소: `hyunolike/insurance-business-support` (계약·언더라이팅 = 계약 정보의 원천)
 - 스택: Java 21 LTS, Spring Boot 3.x, PostgreSQL 15, Kafka, Redis
 - 아키텍처: DDD + 헥사고날, Gradle 멀티모듈, Transactional Outbox
-- **현재 상태: 설계 완료, 구현 Phase 0 시작 전**
+- **현재 상태: Phase 0(골격) 완료. 다음은 business-support Phase 1을 기다린 뒤 Phase 2**
 
 ## 작업 전 반드시 읽을 것
 
@@ -42,16 +42,19 @@ Claude Code(claude.ai/code)가 이 저장소에서 작업할 때 참고하는 �
 ## 명령어
 
 ```bash
-# 인프라
+# 인프라 (compose.yaml — PostgreSQL, Redis, KRaft Kafka)
 docker compose up -d
 docker compose down -v
 
 # 빌드·테스트
 ./gradlew clean build
 ./gradlew :claims-domain:test                              # 도메인 단위 (빠름, Spring 없음)
-./gradlew :claims-rules:test --tests '*GoldenCaseTest'     # 심사 골든 케이스
 ./gradlew test --tests '*ArchitectureTest'                 # 아키텍처 규칙
 ./gradlew jacocoTestCoverageVerification                   # 커버리지 게이트
+
+# Phase 3부터
+./gradlew :claims-rules:test --tests '*GoldenCaseTest'     # 심사 골든 케이스
+# Phase 6부터
 ./gradlew generateOpenApiDocs                              # OpenAPI 갱신
 
 # 실행
@@ -95,14 +98,32 @@ feat · fix · docs · refactor · test · chore
 ## 현재 구현 상태
 
 ```
-Phase 0  골격 (멀티모듈, ArchUnit, Testcontainers, CI)   ☐ 미착수
-Phase 1  BS: 계약 모델 + 스냅샷 API                      ☐ (다른 저장소)
-Phase 2  청구 접수 + 스냅샷 연동                          ☐
+Phase 0  골격 (멀티모듈, ArchUnit, Testcontainers, CI)   ☑ 완료
+Phase 1  BS: 계약 모델 + 스냅샷 API                      ☐ (다른 저장소 — 선행 조건)
+Phase 2  청구 접수 + 스냅샷 연동                          ☐  ← 다음
 Phase 3  심사 엔진                                        ☐
 Phase 4  지급 + Outbox/Kafka                              ☐
 Phase 5  BS: 청약·언더라이팅                              ☐ (다른 저장소)
 Phase 6  운영 강화 (암호화, 감사, 관측성)                 ☐
 ```
+
+**Phase 0에서 실제로 만들어진 것**
+
+```
+claims-domain/          shared/  DomainEvent · EventId(ULID) · AggregateRoot
+                        shared/vo/  Money (원 단위 정수)
+claims-application/     port/out/  OutboxAppender
+claims-adapter-persistence/  outbox/  Entity · Repository · AppenderAdapter
+                             db/migration/V1__baseline_infrastructure.sql
+claims-bootstrap/       ClaimsApplication · SecurityConfig
+                        test/  ArchitectureTest · FlywayMigrationTest
+                               OutboxAppenderIntegrationTest · IntegrationTestBase
+나머지 모듈              package-info.java 로 책임만 문서화 (Phase 2~4에서 채움)
+```
+
+`claims-rules`, `claims-adapter-web/messaging/policy/external` 이 비어 있는 것은
+정상이다. ArchUnit의 `withOptionalLayers(true)` / `allowEmptyShould(true)` 가
+그 사실을 명시하고 있고, 해당 Phase에서 채우면서 함께 걷어낸다.
 
 Phase를 완료하면 이 표와 `docs/design/08-roadmap.md`를 함께 갱신한다.
 

@@ -1,0 +1,15 @@
+dependencies {
+    implementation project(':claims-application')
+
+    implementation project(':claims-adapter-persistence')
+    implementation 'org.springframework.kafka:spring-kafka'
+    implementation 'org.springframework.boot:spring-boot-starter-json'
+
+    compileOnly libs.lombok
+    annotationProcessor libs.lombok
+}
+
+// Phase 4: Outbox 릴레이 + Kafka 발행/소비.
+jacocoTestCoverageVerification {
+    violationRules { rule { element = 'BUNDLE'; limit { counter = 'LINE'; minimum = 0.00 } } }
+}

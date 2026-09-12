@@ -468,19 +468,25 @@ JPA `AttributeConverter`로 투명하게 처리한다. 개발자가 암복호화
 
 ## 4. 마이그레이션 구성
 
+마이그레이션은 Phase 진행에 따라 추가된다. 번호는 실제 적용 순서다.
+
 ```
-src/main/resources/db/migration/
-├── V1__baseline_claim.sql            -- claim, treatment_line, claim_document
-├── V2__policy_snapshot.sql           -- 스냅샷 + 불변 RULE
-├── V3__adjudication.sql              -- adjudication, benefit_line, rule_trace
-├── V4__benefit_ledger.sql            -- ledger, ledger_entry
-├── V5__payment.sql                   -- instruction, attempt
-├── V6__outbox_and_idempotency.sql
-├── V7__policy_replica.sql
-├── V8__ruleset_parameters.sql
-├── V9__audit_log_partitioned.sql
+claims-adapter-persistence/src/main/resources/db/migration/
+├── V1__baseline_infrastructure.sql   -- [Phase 0 ✅] outbox_event, processed_event,
+│                                     --              idempotency_record
+├── V2__claim.sql                     -- [Phase 2] claim, treatment_line, claim_document
+├── V3__policy_snapshot.sql           -- [Phase 2] 스냅샷 + 불변 RULE
+├── V4__policy_replica.sql            -- [Phase 2] 계약 읽기모델
+├── V5__adjudication.sql              -- [Phase 3] adjudication, benefit_line, rule_trace
+├── V6__benefit_ledger.sql            -- [Phase 3] ledger, ledger_entry
+├── V7__ruleset_parameters.sql        -- [Phase 3] ruleset_parameter, exclusion_kcd_rule
+├── V8__payment.sql                   -- [Phase 4] instruction, attempt
+├── V9__audit_log_partitioned.sql     -- [Phase 6]
 └── R__seed_ruleset_2026_01.sql       -- 반복 실행 (룰 파라미터 시드)
 ```
+
+> 운영 테이블(Outbox·멱등성)이 V1인 이유: 모든 Phase가 공통으로 쓰는 기반이고,
+> Phase 0에서 Testcontainers로 마이그레이션 파이프라인 자체를 검증해야 하기 때문이다.
 
 ### 4.1 v1의 치명적 문제와 교정
 

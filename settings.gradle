@@ -1,1 +1,13 @@
-rootProject.name = 'claim-automation'
+rootProject.name = 'insurance-claims-platform'
+
+// 의존 방향: adapter → application → domain ← rules
+// 이 경계는 각 모듈의 build.gradle이 강제하고, ArchitectureTest가 재검증한다.
+include 'claims-domain'
+include 'claims-application'
+include 'claims-rules'
+include 'claims-adapter-web'
+include 'claims-adapter-persistence'
+include 'claims-adapter-messaging'
+include 'claims-adapter-policy'
+include 'claims-adapter-external'
+include 'claims-bootstrap'

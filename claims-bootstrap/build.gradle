@@ -1,0 +1,50 @@
+// ─────────────────────────────────────────────────────────────
+// claims-bootstrap : Spring Boot 애플리케이션, 설정 조립
+//
+// 모든 모듈이 여기 모인다. 그래서 아키텍처 검증(ArchitectureTest)과
+// 전체 스택 통합 테스트도 여기서 돈다.
+// ─────────────────────────────────────────────────────────────
+
+plugins {
+    alias(libs.plugins.spring.boot)
+}
+
+dependencies {
+    implementation project(':claims-domain')
+    implementation project(':claims-application')
+    implementation project(':claims-rules')
+    implementation project(':claims-adapter-web')
+    implementation project(':claims-adapter-persistence')
+    implementation project(':claims-adapter-messaging')
+    implementation project(':claims-adapter-policy')
+    implementation project(':claims-adapter-external')
+
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    // 통합 테스트에서 JdbcTemplate / TransactionTemplate 으로 스키마와 트랜잭션 경계를 직접 검증한다
+    testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    testImplementation 'org.springframework.security:spring-security-test'
+
+    // 아키텍처 규칙 — 모든 모듈이 클래스패스에 있어야 검증할 수 있다
+    testImplementation libs.archunit.junit5
+
+    // 통합 테스트는 실제 PostgreSQL에서 돈다. H2를 쓰지 않는다.
+    testImplementation libs.testcontainers.junit
+    testImplementation libs.testcontainers.postgresql
+}
+
+// bootstrap은 설정 조립이 대부분이라 커버리지 기준을 따로 두지 않는다.
+// 검증의 무게는 ArchitectureTest 와 통합 테스트가 진다.
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            element = 'BUNDLE'
+            limit { counter = 'LINE'; minimum = 0.00 }
+        }
+    }
+}

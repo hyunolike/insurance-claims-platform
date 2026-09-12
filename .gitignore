@@ -150,3 +150,11 @@ build/
 # Claude Code personal configuration
 .claude/
 claude.local.md
+
+# 로컬 환경 변수 — 비밀값이 들어간다. 절대 커밋하지 않는다.
+.env
+.env.local
+
+# Gradle wrapper jar 는 커밋한다.
+# 위의 *.jar 규칙에 걸리면 fresh clone / CI 에서 ./gradlew 가 동작하지 않는다.
+!gradle/wrapper/gradle-wrapper.jar

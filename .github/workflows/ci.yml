@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+# 같은 브랜치에 연속 푸시되면 이전 실행을 취소한다
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Build & Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # ── 전체 빌드 ────────────────────────────────────────────────────
+      # Testcontainers가 여기서 실제로 실행된다.
+      # GitHub Actions 러너에는 Docker가 있으므로 통합 테스트가 skip되지 않는다.
+      - name: Build & Test
+        env:
+          # 비밀값은 기본값이 없다. 없으면 기동이 실패하는 것이 정상 동작이다.
+          DB_PASSWORD: ci-only-not-a-secret
+          CLAIMS_ENCRYPTION_KEY: ci-only-not-a-secret
+        run: ./gradlew build --no-daemon
+
+      # ── 아키텍처 규칙 ────────────────────────────────────────────────
+      # v1이 무너진 지점들을 여기서 막는다:
+      #   - 도메인이 Spring을 참조
+      #   - application이 ApplicationEventPublisher를 직접 사용
+      #   - 의존 방향 역전
+      - name: Architecture rules
+        run: ./gradlew :claims-bootstrap:test --tests '*ArchitectureTest' --no-daemon
+
+      # ── 커버리지 게이트 ──────────────────────────────────────────────
+      # v1 실측은 라인 68% / 브랜치 22%였다.
+      # 브랜치가 낮다는 건 분기(=비즈니스 규칙)를 테스트하지 않았다는 뜻이다.
+      - name: Coverage gate
+        run: ./gradlew jacocoTestCoverageVerification --no-daemon
+
+      - name: Publish test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            **/build/reports/tests/
+            **/build/reports/jacoco/
+          retention-days: 7
+
+  secret-scan:
+    name: Secret scanning
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # v1은 DB 비밀번호가 application.yml에 평문으로 커밋되어 있었다.
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

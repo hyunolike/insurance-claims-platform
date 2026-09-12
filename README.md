@@ -2,7 +2,7 @@
 
 > 사고일 시점의 계약을 고정해, **설명 가능한 심사**로 보험금을 산출하는 백엔드 시스템
 
-[![Phase](https://img.shields.io/badge/phase-설계%20완료-blue)]()
+[![Phase](https://img.shields.io/badge/phase-0%20골격%20완료-brightgreen)]()
 [![Java](https://img.shields.io/badge/Java-21%20LTS-orange)]()
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-green)]()
 
@@ -177,14 +177,16 @@ claims-bootstrap/           ← Spring Boot 앱
 
 ## 시작하기
 
-> ⚠️ 현재 **설계 단계**다. 구현은 [로드맵](docs/design/08-roadmap.md) Phase 0부터 시작한다.
+> **Phase 0(골격) 완료.** 멀티모듈 구조·아키텍처 강제 장치·CI·Outbox 기반이 동작한다.
+> 업무 로직은 [로드맵](docs/design/08-roadmap.md) Phase 2부터 들어간다
+> (그 전에 business-support Phase 1의 스냅샷 API가 필요하다).
 
 ### 요구사항
 
 - Java 21
 - Docker & Docker Compose
 
-### 실행 (구현 후)
+### 실행
 
 ```bash
 cp .env.example .env      # 비밀값 설정 (미설정 시 기동 실패)
@@ -199,8 +201,13 @@ docker compose up -d      # PostgreSQL, Redis, Kafka(KRaft)
 ./gradlew build                                  # 전체 빌드 + 테스트
 ./gradlew test --tests '*ArchitectureTest'       # 아키텍처 규칙
 ./gradlew jacocoTestCoverageVerification         # 커버리지 게이트
-./gradlew :claims-rules:test --tests '*GoldenCaseTest'  # 심사 골든 케이스
 ```
+
+통합 테스트(Flyway 마이그레이션, Outbox 트랜잭션 원자성)는 Testcontainers로 돈다.
+**Docker가 없으면 실패가 아니라 skip** 되므로, 로컬에 Docker 없이도 빌드는 통과한다
+(`@Testcontainers(disabledWithoutDocker = true)`).
+
+심사 골든 케이스(`:claims-rules:test --tests '*GoldenCaseTest'`)는 Phase 3부터 생긴다.
 
 ---
 
@@ -229,9 +236,9 @@ feat · fix · docs · refactor · test · chore
 ```
 □ ./gradlew build 통과
 □ ArchUnit 규칙 통과
-□ 커버리지 게이트 통과 (도메인/룰 브랜치 85%, 전체 라인 75%)
-□ 골든 케이스 통과 (심사 로직 변경 시)
-□ OpenAPI drift 없음 (API 변경 시)
+□ 커버리지 게이트 통과 (도메인 브랜치 85% / 라인 90%)
+□ 골든 케이스 통과 (Phase 3부터, 심사 로직 변경 시)
+□ OpenAPI drift 없음 (Phase 6부터, API 변경 시)
 □ 해당 Phase의 완료 조건 체크리스트 충족
 ```
 
