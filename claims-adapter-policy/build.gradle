@@ -1,0 +1,15 @@
+dependencies {
+    implementation project(':claims-application')
+
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    // 서킷브레이커(resilience4j)는 실제 호출이 생기는 Phase 2에서 추가한다.
+
+    compileOnly libs.lombok
+    annotationProcessor libs.lombok
+}
+
+// Phase 2: business-support 계약 스냅샷 조회 ACL.
+// 서킷브레이커가 열려도 청구 접수는 막지 않는다 (202 + 스냅샷 PENDING).
+jacocoTestCoverageVerification {
+    violationRules { rule { element = 'BUNDLE'; limit { counter = 'LINE'; minimum = 0.00 } } }
+}

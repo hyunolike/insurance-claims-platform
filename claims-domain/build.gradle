@@ -1,0 +1,24 @@
+// ─────────────────────────────────────────────────────────────
+// claims-domain : 순수 자바 도메인
+//
+// 의존성이 없다. Spring도, JPA도, Jackson도 클래스패스에 존재하지 않는다.
+// "쓰지 말자"는 약속이 아니라 "쓸 수 없는" 상태다.
+// v1은 이 규칙을 문서로만 두어 application 계층이 Spring에 결합되었다.
+// ─────────────────────────────────────────────────────────────
+
+dependencies {
+    compileOnly libs.lombok
+    annotationProcessor libs.lombok
+}
+
+// 도메인은 이 프로젝트에서 가장 높은 커버리지를 요구한다.
+// 분기(=비즈니스 규칙)를 테스트하지 않으면 심사 로직에서 치명적이다.
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            element = 'BUNDLE'
+            limit { counter = 'BRANCH'; minimum = 0.85 }
+            limit { counter = 'LINE'; minimum = 0.90 }
+        }
+    }
+}

@@ -1,0 +1,31 @@
+// ─────────────────────────────────────────────────────────────
+// claims-application : 유스케이스 오케스트레이션, 트랜잭션 경계, 포트 정의
+//
+// Spring은 DI와 트랜잭션만 쓴다. JPA·웹·Kafka는 클래스패스에 없다.
+//
+// ★ ApplicationEventPublisher 를 쓰지 않는다.
+//   v1은 @Transactional 안에서 publishEvent()를 호출해 커밋 전에 리스너가 돌았다.
+//   재설계에서는 애그리거트가 이벤트를 record()하고, 이 계층이 pullEvents()로 꺼내
+//   같은 트랜잭션에서 Outbox 테이블에 INSERT한다.
+//   ArchitectureTest 가 이 규칙을 강제한다.
+// ─────────────────────────────────────────────────────────────
+
+dependencies {
+    api project(':claims-domain')
+    implementation project(':claims-rules')
+
+    implementation 'org.springframework:spring-context'
+    implementation 'org.springframework:spring-tx'
+
+    compileOnly libs.lombok
+    annotationProcessor libs.lombok
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            element = 'BUNDLE'
+            limit { counter = 'LINE'; minimum = 0.00 }  // Phase 2에서 상향
+        }
+    }
+}

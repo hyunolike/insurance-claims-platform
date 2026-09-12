@@ -1,0 +1,29 @@
+// ─────────────────────────────────────────────────────────────
+// claims-rules : 심사 룰 엔진
+//
+// 도메인만 의존한다. Spring도 JPA도 없다.
+// 룰은 순수 함수여야 한다 — (입력) → (판정, 근거).
+// I/O는 파이프라인 진입 전에 AdjudicationContext로 전부 적재된다.
+// 덕분에 심사 전체가 인메모리 계산이 되어 모킹 없이 테스트할 수 있다.
+//
+// Phase 3에서 8단계 파이프라인이 여기 구현된다.
+// docs/design/03-adjudication.md
+// ─────────────────────────────────────────────────────────────
+
+dependencies {
+    api project(':claims-domain')
+
+    compileOnly libs.lombok
+    annotationProcessor libs.lombok
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            element = 'BUNDLE'
+            // Phase 3에서 BRANCH 0.85 로 상향한다.
+            // 금액 산출 로직은 분기가 곧 비즈니스 규칙이다.
+            limit { counter = 'LINE'; minimum = 0.00 }
+        }
+    }
+}

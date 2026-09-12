@@ -1,0 +1,14 @@
+dependencies {
+    implementation project(':claims-application')
+
+    implementation 'org.springframework.boot:spring-boot-starter'
+
+    compileOnly libs.lombok
+    annotationProcessor libs.lombok
+}
+
+// Phase 4: 이체·알림·FDS 어댑터 (스텁).
+// 스텁이라도 실패·지연·타임아웃을 재현할 수 있어야 값어치가 있다.
+jacocoTestCoverageVerification {
+    violationRules { rule { element = 'BUNDLE'; limit { counter = 'LINE'; minimum = 0.00 } } }
+}

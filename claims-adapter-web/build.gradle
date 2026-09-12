@@ -1,0 +1,15 @@
+dependencies {
+    implementation project(':claims-application')
+
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    compileOnly libs.lombok
+    annotationProcessor libs.lombok
+}
+
+// Phase 2: REST 컨트롤러 + MockMvc 테스트.
+// v1은 웹 계층 테스트가 0건이라 문서-코드 계약 불일치를 잡지 못했다.
+jacocoTestCoverageVerification {
+    violationRules { rule { element = 'BUNDLE'; limit { counter = 'LINE'; minimum = 0.00 } } }
+}

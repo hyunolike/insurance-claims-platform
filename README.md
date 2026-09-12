@@ -1,425 +1,444 @@
-# 보험금 청구 자동화 시스템
-> 이벤트 기반 아키텍처로 보험금 청구부터 지급까지의 전 과정을 자동화하는 백엔드 시스템
+# 실손의료보험 청구 자동화 플랫폼
 
-<img width="1118" height="267" alt="image" src="https://github.com/user-attachments/assets/9b8ab135-5656-4b84-9b94-63a00dc7db6f" />
+> 사고일 시점의 계약을 고정해, **설명 가능한 심사**로 보험금을 산출하는 백엔드 시스템
 
-
-## 프로젝트 개요
-
-보험금 청구 과정을 **청구 → 심사 → 지급 → 알림**의 이벤트 흐름으로 자동화하여, 처리 시간을 단축하고 고객 경험을 개선합니다.
-
-### 핵심 목표
-
-- **처리 시간**: 평균 10분 → 7분 이하로 단축
-- **재오픈율**: 고객 문의 재오픈율 5% → 2% 이하로 감소
-- **자동화율**: 수동 심사 개입 최소화, Rule Engine 기반 자동 승인
-
-### 주요 특징
-
-- 이벤트 기반 비동기 처리 (Kafka)
-- 분산 캐싱으로 빠른 상태 조회 (Redis)
-- 중복 지급 방지 및 트랜잭션 정합성 보장
-- 개인정보 암호화 및 감사 로그 자동 기록
-- Observability 기반 실시간 모니터링
-
-### 개발 일정
-
-**프로젝트 기간**: 2025-12-28 ~ 2026-01-12 (16일)
-
-| Phase | 기간 | 완료일 | 주요 산출물 |
-|-------|------|--------|------------|
-| Phase 0 | 1일 | 2025-12-28 | 개발 환경 완성 |
-| Phase 1 | 3일 | 2025-12-31 | 청구 생성/조회 API |
-| Phase 2 | 2일 | 2026-01-02 | 이벤트 기반 구조 (동기) |
-| Phase 3 | 3일 | 2026-01-05 | Kafka 비동기 처리 |
-| Phase 4 | 4일 | 2026-01-09 | 심사 + 지급 자동화 (MVP) |
-| Phase 5 | 3일 | 2026-01-12 | 알림 + Observability |
-
-**주요 마일스톤**:
-- 🎯 **M1** (2025-12-31): 첫 API 완성 - `POST /claims`, `GET /claims/{id}`
-- 🎯 **M2** (2026-01-05): Kafka 비동기 이벤트 처리
-- 🎯 **M3** (2026-01-09): MVP 완성 - 청구 → 심사 → 지급 전체 흐름
-- 🎯 **M4** (2026-01-12): 전체 완성 - 알림, 감사, 모니터링
-
-자세한 일정은 [개발 계획서](docs/IMPLEMENTATION_PLAN.md), [WBS](docs/WBS.md) 참고
+[![Phase](https://img.shields.io/badge/phase-0%20골격%20완료-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-69%20passed%20%C2%B7%208%20skipped-brightgreen)]()
+[![Java](https://img.shields.io/badge/Java-21%20LTS-orange)]()
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-green)]()
 
 ---
 
-## 시스템 아키텍처
+## 이 프로젝트가 푸는 문제
 
-### 전체 구조도
+실손의료보험 청구 심사는 "얼마를 줄 것인가"를 계산하는 문제가 아니다.
+**"이 금액이 왜 나왔는지 설명할 수 있는가"** 의 문제다.
+
+고객이 30만원을 청구했는데 12만 4천원이 지급되면, 그 차액 17만 6천원을 항목별로 설명해야 한다.
+설명하지 못하면 민원이 되고, 민원이 분쟁이 되고, 분쟁이 감독기관 검사가 된다.
+
+이 시스템의 모든 설계 결정은 한 문장으로 수렴한다:
+
+> **심사 결과의 모든 단계는 재현 가능하고, 설명 가능하며, 사후에 변조 불가능해야 한다.**
+
+### 산출 예시 — 통원, 상급종합병원, 4세대
+
+| 항목 | 금액 |
+|---|---|
+| 총 진료비 | 300,000원 |
+| ─ 급여 공단부담금 | 120,000원 → **보상 대상 아님** |
+| ─ 급여 본인부담금 | 60,000원 |
+| ─ 비급여 | 120,000원 |
+
+```
+급여   : 60,000 - max(60,000×20%, 20,000)  = 60,000 - 20,000 = 40,000
+                      ↑ 12,000    ↑ 상급종합 최소공제 (더 큼)
+비급여 : 120,000 - max(120,000×30%, 30,000) = 120,000 - 36,000 = 84,000
+                      ↑ 36,000 (더 큼)  ↑ 30,000
+───────────────────────────────────────────────
+지급액 124,000원
+```
+
+이 계산의 **모든 단계가 룰 ID·약관 조항·입출력과 함께 영구 기록**된다.
+
+---
+
+## 🎯 기능 요구 사항
+
+구현 전에 기능을 쪼개 적고, 끝난 것만 체크한다. 체크되지 않은 항목은 **아직 동작하지 않는다.**
+
+### Phase 0 — 골격
+
+- [x] Gradle 멀티모듈 (`claims-domain`에 Spring/JPA/Jackson **클래스패스 부재**)
+- [x] `Money` — 원 단위 정수 (원화에 `scale=2`는 틀렸다)
+- [x] `AggregateRoot` · `DomainEvent` · `EventId`(ULID) — 이벤트를 `record()`하는 뼈대
+- [x] ArchUnit 아키텍처 규칙 11종 (의존 방향 · 금지 임포트 · **검사 대상 공백 탐지**)
+- [x] Testcontainers PostgreSQL + Flyway + `ddl-auto: validate` (H2 금지)
+- [x] Transactional Outbox — 테이블 · `OutboxAppender` · 원자성 통합 테스트
+- [x] GitHub Actions CI + 커버리지 게이트
+- [x] `SnapshotChecksum` + 계약 테스트 — business-support와 같은 바이트열에 고정
+
+### Phase 2 — 청구 접수 + 스냅샷 연동 ← **다음**
+
+> 선행 조건: business-support Phase 1 (스냅샷 API) — **충족됨**
+
+- [ ] `Claim` 애그리거트 + 상태머신 (v1의 "PENDING에서 못 벗어남"을 고친다)
+- [ ] 사고일 기준 스냅샷 조회 → **불변 복제본으로 저장** + 체크섬 검증
+- [ ] 민감 타입 — `toString()`이 마스킹된 값을 반환 (로깅 사고를 타입이 막는다)
+- [ ] 지급기한 — 영업일 계산 · 서류 보완 중 시계 정지
+- [ ] 청구 접수 REST API + 인증·인가 (v1은 전 엔드포인트가 공개였다)
+- [ ] 상태 전이 위반 → 500이 아니라 **409**
+
+### Phase 3 — 심사 엔진
+
+- [ ] 룰 카탈로그 `R-{단계}-{번호}` 8단계
+- [ ] `RuleTrace` — 룰 ID · 약관 조항 · 입출력 · 판정 (append-only)
+- [ ] 자기부담금 `max(정률, 최소공제금액)` · 급여/비급여 분리
+- [ ] `BenefitLedger` — 계약 응당일 기준 보장연도 · 한도 소진
+- [ ] 부지급 시 `DenialReason` 강제 (메서드 시그니처로)
+- [ ] 골든 케이스 — **금액이 조용히 바뀌는 것을 막는 장치**
+
+### Phase 4 — 지급 + Outbox/Kafka
+
+- [ ] 예약/확정 분리 + `CHECK (used_amount <= annual_limit)`
+- [ ] 결정적 멱등키를 외부 이체 API에 전달
+- [ ] **타임아웃을 실패로 취급하지 않는다** — 대사로 확인될 때까지 `PAID` 보류
+- [ ] Outbox 폴링 릴레이 + `policy.corrected` 수신 → 재심사 유발
+
+### Phase 6 — 운영 강화
+
+- [ ] 민감 컬럼 암호화 · `audit_log`
+- [ ] 관측성 (메트릭 · 추적)
+- [ ] OpenAPI 생성 + CI drift 검사
+
+---
+
+## 📐 프로그래밍 요구 사항
+
+**스스로 건 제약이다. 지켜지길 바라는 게 아니라, 어기면 빌드가 막히도록 만들었다.**
+
+### 지금 빌드가 막는 것
+
+| 제약 | 강제 장치 |
+|---|---|
+| 도메인에 Spring·JPA·Jackson을 쓰지 않는다 | **클래스패스에 없다** (`claims-domain/build.gradle`) |
+| 의존 방향은 전부 도메인을 향한다 | Gradle이 컴파일을 거부 + ArchUnit |
+| `ApplicationEventPublisher`를 쓰지 않는다 | ArchUnit — 애그리거트가 `record()` → `OutboxAppender` |
+| 애플리케이션이 기술 상세를 모른다 | ArchUnit — JPA·Kafka·HTTP 임포트 금지 |
+| 금액은 `Money` VO로만 (원 단위 정수) | ArchUnit이 도메인의 `BigDecimal` **금액** 필드를 거부 |
+| 도메인이 로깅하지 않는다 · `System.out` 금지 | ArchUnit |
+| `Date`·`Calendar`·Joda를 쓰지 않는다 | ArchUnit (`java.time`만) |
+| **검사 대상이 비어 있으면 실패한다** | ArchUnit — 규칙이 통과한 것과 볼 게 없던 것은 다르다 |
+| 테스트에 H2를 쓰지 않는다 | Testcontainers + Flyway + `ddl-auto: validate` |
+| 비밀값에 기본값을 주지 않는다 | 미설정 시 기동 실패가 정상 |
+| 스냅샷으로 받아선 안 될 정보는 받지 않는다 | 계약 테스트의 **금지 필드 목록** 29개 |
+| 커밋된 소스가 빌드에 실제로 들어간다 | CI의 "무시된 소스" 가드 (`.gitignore` 오탐 검출) |
+
+### 아직 규칙만 있고 강제 장치가 없는 것
+
+해당 코드가 없기 때문이다. **Phase에 들어갈 때 강제 장치를 함께 넣는다.**
+
+| 제약 | 넣을 곳 |
+|---|---|
+| `@Transactional` 안에서 외부로 발행하지 않는다 | Phase 4 — ArchUnit + Outbox |
+| 민감정보를 로그·이벤트에 넣지 않는다 | Phase 2 — 민감 타입의 `toString()` 마스킹 |
+| `rule_trace`·`policy_snapshot`은 수정·삭제 불가 | Phase 3 — DB 계정 권한 회수 |
+| 심사는 `PolicySnapshot`만 본다 (읽기모델 금지) | Phase 3 — ArchUnit + 심사 입력 타입 |
+| 부지급에는 반드시 `DenialReason`이 붙는다 | Phase 3 — **메서드 시그니처** |
+| 만들고 안 쓰는 포트를 두지 않는다 | Phase 2 — ArchUnit (v1의 죽은 코드) |
+
+전체 목록: [`CLAUDE.md`](CLAUDE.md) — 절대 규칙 10개
+
+---
+
+## 시스템 구성
+
+이 저장소는 2개 저장소로 구성된 시스템의 **보상(Claims) 측**이다.
 
 ```mermaid
-graph TD
-    UserApp((모바일 앱))
-    Advisor((상담사 콘솔))
-    APIGW(API Gateway)
-    ClaimSvc(청구 서비스)
-    Rule(심사 Rule Engine)
-    Kafka[[Kafka Event Bus]]
-    Notification(알림 서비스)
-    Audit(감사 로그 서비스)
-    Payment(지급 서비스)
-    Redis[(Redis 캐시)]
-    RDB[(PostgreSQL)]
-    Observability((Observability))
-
-    UserApp -->|청구 요청| APIGW
-    Advisor -->|예외 처리| ClaimSvc
-    APIGW --> ClaimSvc
-    ClaimSvc -->|데이터| RDB
-    ClaimSvc -->|상태 캐시| Redis
-    ClaimSvc -->|심사 요청| Rule
-    Rule -->|결과 이벤트| ClaimSvc
-    ClaimSvc -->|이벤트 발행| Kafka
-    Kafka --> Notification
-    Kafka --> Audit
-    Kafka --> Payment
-    Notification -->|알림 상태| Observability
-    ClaimSvc -->|APM/로그| Observability
-    Payment -->|정산 상태| Observability
+flowchart LR
+    subgraph BS["insurance-business-support"]
+        POL[(계약 · 담보 · 부담보<br/>언더라이팅)]
+    end
+    subgraph CP["insurance-claims-platform ← 이 저장소"]
+        RCV[청구 접수] --> SNAP[["계약 스냅샷<br/>(불변 복제본)"]]
+        SNAP --> ADJ[심사 엔진] --> PAY[지급]
+    end
+    POL -->|"사고일 기준 스냅샷<br/>GET /policies/{no}/snapshot?asOf="| SNAP
+    PAY -.->|claim.paid| POL
 ```
 
-### 서비스 구성
+| 저장소 | 역할 |
+|---|---|
+| [`insurance-business-support`](https://github.com/hyunolike/insurance-business-support) | 청약 · 언더라이팅 · 계약 보전 — **계약 정보의 원천** |
+| `insurance-claims-platform` (이 저장소) | 청구 접수 · 심사 · 지급 — **보상 처리** |
 
-#### API Layer
-- **Claim API**: 보험금 청구 생성, 상태 조회
-- **Payment API**: 지급 상태 관리
-- **Query API**: 통합 조회 (타임라인, 알림 히스토리)
-
-#### Application Layer
-- **Claim Service**: 청구 생성/상태 전환/데이터 적재 담당
-- **Rule Engine Service**: 자동 심사 규칙 실행 및 승인/거부 판정
-- **Payment Service**: 보험금 지급 처리
-- **Notification Service**: 고객 알림 발송 (Push, SMS, Email)
-- **Event Publisher**: Kafka 이벤트 발행 관리
-
-#### Infrastructure Layer
-- **Kafka**: 이벤트 버스, 서비스 간 비동기 통신
-- **Redis**: 분산 캐시 및 분산 락
-- **PostgreSQL**: 영속 데이터 저장소
-- **Encryption Module**: 개인정보 암호화
+경계와 통합 방식: [`docs/design/01-context-map.md`](docs/design/01-context-map.md)
 
 ---
 
-## 이벤트 흐름
+## 핵심 설계 결정
+
+### 1. 계약 스냅샷 — 사고일 시점을 고정한다
+
+청구 접수 시점에 **사고일 기준 계약 상태를 조회해 불변 복제본으로 저장**한다.
+이후 모든 심사·재심사는 저장된 스냅샷만 본다.
 
 ```
-claim.requested → claim.reviewed → claim.approved → claim.disbursed
+2026-03-14  사고 발생        ← 이 시점의 계약 조건으로 심사
+2026-04-02  청구 접수        ← 여기서 스냅샷 확보 후 고정
+2026-05-10  계약 변경(부담보 해제)
+2026-06-01  민원 → 재심사    ← 여전히 3/14 기준으로 재현됨
 ```
 
-### 1. 청구 생성 (claim.requested)
-- 고객이 모바일 앱에서 보험금 청구 등록
-- Claim Service가 데이터 저장 후 이벤트 발행
-- Notification Service가 "청구 접수 완료" 알림 발송
+얻는 것: **심사 재현성, 분쟁 대응력, 장애 격리**(계약 서버가 죽어도 심사 계속), **성능**(심사 중 네트워크 호출 0회).
 
-### 2. 자동 심사 (claim.reviewed)
-- Rule Engine이 심사 규칙 실행
-- 자동 승인/거부 판정 후 결과 저장
-- 심사 결과를 Kafka로 발행
+### 2. 심사 트레이스 — 모든 판정에 근거를 남긴다
 
-### 3. 승인 확정 (claim.approved)
-- 승인된 청구에 대해 이벤트 발행
-- Payment Service가 지급 프로세스 시작
-- Audit Service가 승인 이력 기록
+```jsonc
+{
+  "ruleId": "R-CAL-020", "ruleName": "급여 자기부담금 차감",
+  "clause": "실손의료보험 표준약관 제3조 제1항",
+  "input":  { "claimBase": 60000, "coinsuranceRate": "0.20", "minDeductible": 20000 },
+  "output": { "deductible": 20000, "payable": 40000 },
+  "verdict": "APPLIED"
+}
+```
 
-### 4. 지급 완료 (claim.disbursed)
-- Payment Service가 계좌 이체 처리
-- 지급 완료 이벤트 발행
-- Notification Service가 "지급 완료" 알림 발송
-- Observability에 SLA 지표 기록
+`rule_trace` 테이블은 **append-only**다. 애플리케이션 DB 계정에 `UPDATE`/`DELETE` 권한이 없다.
+재심사는 기존 심사를 수정하지 않고 **새 심사를 생성**한다.
+
+### 3. 지급기한을 1급 도메인 개념으로
+
+표준약관상 보험금은 접수 후 **3영업일**(조사 필요 시 10영업일) 이내에 지급해야 하고,
+초과하면 지연이자가 붙는다. 이걸 화면에 표시만 하는 값이 아니라 **시스템이 추적하는 SLA**로 다룬다.
+
+- 접수 시 영업일 기준 기한 자동 계산 (공휴일 반영)
+- 서류 보완 중 **시계 정지**, 보완 시 재개
+- 심사자 큐는 **기한 임박순 정렬**이 기본
+- 초과 시 지연이자 자동 산출 + P1 알림
+
+### 4. 돈이 걸린 경로는 이중으로 막는다
+
+| 사고 | 방어 |
+|---|---|
+| 한도 초과 지급 | 낙관적 락 + 예약/확정 분리 + **DB `CHECK (used_amount <= annual_limit)`** |
+| 중복 지급 | `UNIQUE(claim_id, adjudication_id)` + 결정적 멱등키를 외부 이체 API에 전달 + 단방향 상태 전이 |
+| 이체 결과 불명 | **타임아웃을 실패로 취급하지 않는다.** 조회 대사로 확인될 때까지 `PAID` 전환 보류 |
 
 ---
 
-## API 엔드포인트
+## 🤔 설계하며 고민한 것
 
-### 청구 생성
-```http
-POST /claims
-Authorization: Bearer {token}
+### 왜 아직 청구 접수가 없는가 — 순서를 지켰다
 
-{
-  "policyId": "uuid",
-  "claimedAmount": 250000,
-  "documents": [{"type": "RECEIPT", "url": "https://..."}],
-  "accidentAt": "2024-07-01T10:12:00Z"
-}
+가장 만들고 싶었던 것은 심사 엔진이다. 그런데 심사의 입력은 **사고일 시점의 계약**이고,
+그 원천은 이 저장소에 없다. 스냅샷 API보다 먼저 청구 접수를 만들면 계약 조회를 목으로
+채우게 되고, **그 목이 곧 설계가 된다.** 실제 응답과 어긋난 것을 나중에 알게 된다.
+
+그래서 business-support의 Phase 1이 끝날 때까지 이 저장소는 골격에서 멈춰 있었다.
+두 레포로 나눈 대가이자, 나누었기 때문에 지킬 수 있는 순서다.
+
+### 대신 `SnapshotChecksum`만 먼저 당겨왔다
+
+계약 테스트는 **양쪽이 있어야 성립한다.**
+
+```
+business-support : 렌더한 결과가 정확히 이 바이트인가?        (제공자 의무)
+claims (여기)     : 이 바이트를 해싱하면 이 체크섬이 나오는가?  (소비자 기대)
 ```
 
-### 청구 상태 조회
-```http
-GET /claims/{claimId}
-Authorization: Bearer {token}
+한쪽만 있으면 **자기가 만든 값을 자기가 확인하는 순환 검증**이다. "오늘의 동작이
+바뀌지 않았다"는 알 수 있지만, 상대와 합의했는지는 알 수 없다.
+
+이것이 실제로 막는 사고: 어느 한쪽이 Jackson 설정을 바꾸거나 필드 표현을 바꾸면
+(`0.20` → `0.2`), **이미 저장된 모든 스냅샷의 무결성 검증이 실패한다.**
+그때는 심사가 전부 수동 회부로 빠진다. 그 사고를 배포가 아니라 PR에서 잡는다.
+
+### 두 레포에 같은 코드를 의도적으로 중복시켰다
+
+`Money`·`EventId`·`AggregateRoot`·`DomainEvent`는 양쪽 저장소에 똑같이 있다.
+공유 라이브러리로 빼면 두 바운디드 컨텍스트가 **컴파일 타임에 다시 묶인다.**
+계약 쪽 필요로 타입이 바뀌면 보상 쪽이 원치 않는 변경을 강제로 받는다.
+
+대신 두 레포가 주고받는 계약(스냅샷 응답, 체크섬 알고리즘)은 **계약 테스트**로 맞춘다.
+결합 없이 안전성만 가져가는 방식이다. 각 파일 상단에 그 이유를 적어 두었다.
+
+### 빈 모듈을 미리 만들어 둔 이유
+
+`claims-rules`, `claims-adapter-web/messaging/policy/external`은 지금 `package-info.java`만
+갖고 있다. 책임 경계를 먼저 고정해야 나중에 "일단 여기 넣자"가 생기지 않는다.
+
+다만 빈 모듈에는 함정이 있다. **ArchUnit은 검사할 클래스가 0개면 조용히 통과한다.**
+그래서 규칙과 별개로 "이 패키지에 클래스가 로드되었는가"를 검사하는 테스트를 뒀다.
+
+```java
+// 규칙이 통과하는 것과 검사할 대상이 없는 것은 다르다
+assertPackagePopulated(classes, "com.insurance.claims.domain");
 ```
 
-**응답 예시**:
-```json
-{
-  "claimId": "uuid",
-  "status": "IN_REVIEW",
-  "timeline": [
-    {"type": "claim.requested", "occurredAt": "2024-07-01T10:13:00Z"},
-    {"type": "claim.reviewed", "occurredAt": "2024-07-02T02:00:00Z"}
-  ],
-  "payout": {
-    "amount": 230000,
-    "status": "PENDING"
-  }
-}
-```
+이 안전장치가 실제로 `ImportOption.DoNotIncludeJars` 때문에 **형제 모듈이 하나도
+로드되지 않던 상황**을 잡아냈다. 그전까지 모든 아키텍처 규칙은 아무것도 검사하지 않은 채
+초록색이었다.
 
-### 심사 결정 등록
-```http
-POST /claims/{claimId}/review
-Authorization: Service-to-Service
+### CI를 켜자 "한 번도 동작한 적 없던" 것들이 나왔다
 
-{
-  "decision": "APPROVED",
-  "reason": "자동 심사 규칙 #12",
-  "reviewer": "rule-engine"
-}
-```
+로컬 빌드가 통과한다고 동작하는 게 아니었다. CI가 처음 돌자:
 
-### 지급 상태 업데이트
-```http
-POST /claims/{claimId}/payout
-Authorization: Service-to-Service
+| 드러난 것 | 왜 안 보였나 |
+|---|---|
+| `gradlew` 스텁이 dash에서 즉시 실패 | 로컬 `/bin/sh`가 bash였다 |
+| `.gitignore`의 `out/`이 `port/out/` 패키지를 삼킴 | 로컬엔 파일이 있었다 |
+| **Outbox 이벤트 직렬화가 전부 실패** | 통합 테스트가 Docker 부재로 skip |
+| jsonb를 문자열로 비교 — 키 순서가 바뀌면 깨짐 | 우연히 순서가 맞았다 |
+| `Money` 규칙이 `coinsuranceRate`를 금액으로 오탐 | 비율 필드가 아직 없었다 |
+| 비밀값 스캐닝이 PR에서만 실패 | push 이벤트는 직전 커밋만 훑는다 |
 
-{
-  "amount": 230000,
-  "method": "ACCOUNT_TRANSFER",
-  "payoutStatus": "SUCCESS"
-}
-```
+`-parameters` 누락은 짝 저장소에서 먼저 터졌다. 컨트롤러가 생기는 순간 모든
+엔드포인트가 400이 되는 문제인데, 이쪽은 아직 컨트롤러가 없어 드러나지 않았을 뿐이다.
+같은 자리에 빠지지 않도록 루트 빌드에 미리 걸어 뒀다.
 
-자세한 API 명세는 [API.md](docs/API.md) 참고
-
----
-
-## 데이터베이스 구조
-
-### 핵심 엔터티
-
-```mermaid
-erDiagram
-    CUSTOMER ||--o{ POLICY : owns
-    POLICY ||--o{ CLAIM : covers
-    CLAIM ||--o{ CLAIM_EVENT : logs
-    CLAIM ||--|| REVIEW : has_latest
-    CLAIM ||--o{ PAYMENT : disburses
-    CLAIM ||--o{ NOTIFICATION : triggers
-
-    CLAIM {
-        uuid id
-        uuid customer_id
-        uuid policy_id
-        decimal claimed_amount
-        string status
-        timestamp submitted_at
-    }
-
-    CLAIM_EVENT {
-        uuid id
-        uuid claim_id
-        string type
-        json payload
-        timestamp occurred_at
-    }
-
-    REVIEW {
-        uuid claim_id
-        string decision
-        string reviewer
-        timestamp decided_at
-    }
-
-    PAYMENT {
-        uuid id
-        uuid claim_id
-        decimal amount
-        string payout_status
-    }
-```
-
-자세한 ERD는 [ERD.md](docs/ERD.md) 참고
+**"테스트가 통과한다"와 "테스트가 실행됐다"는 다르다.** skip을 성공으로 읽지 않는 것이
+이 프로젝트에서 배운 가장 값비싼 교훈이다. 맨 위 배지가 통과 수와 skip 수를 따로 적는
+이유이기도 하다.
 
 ---
 
 ## 기술 스택
 
-### Core Stack
-| 영역 | 기술 | 선택 이유 |
-|------|------|-----------|
-| Language | Java 24 | 토스 표준 |
-| Framework | Spring Boot | 생태계, 안정성 |
-| Build | Gradle | 대규모 프로젝트 표준 |
-| DB | PostgreSQL | 금융권 선호, ACID 보장 |
-| Cache | Redis | 분산 락, 고속 캐싱 |
-| Messaging | Kafka | 이벤트 중심 아키텍처 |
-| ORM | JPA + QueryDSL | 가독성 + 성능 |
-
-### Observability
-| 항목 | 기술 |
-|------|------|
-| Metrics | Micrometer + Prometheus |
-| Logging | Logback + JSON 포맷 |
-| Tracing | 분산 추적 (traceId 헤더) |
-| Monitoring | Grafana 대시보드 |
-
-자세한 기술 스택은 [skillset.md](docs/skillset.md) 참고
+| 영역 | 선택 |
+|---|---|
+| 언어 | Java 21 (LTS) |
+| 프레임워크 | Spring Boot 3.x — **단, 도메인 모듈에서는 배제** |
+| 빌드 | Gradle 멀티모듈 |
+| DB | PostgreSQL 15 (JSONB, 부분 인덱스, 파티셔닝) |
+| 마이그레이션 | Flyway |
+| 메시징 | Kafka (Transactional Outbox 경유) |
+| 캐시 | Redis |
+| 테스트 | JUnit 5, AssertJ, **Testcontainers**, ArchUnit |
 
 ---
 
-## 프로젝트 구조
+## 모듈 구조
 
 ```
-toss/
-├── docs/                         # 문서
-│   ├── IMPLEMENTATION_PLAN.md   # 구현 계획서 (기술적 의사결정, 리스크 관리)
-│   ├── WBS.md                   # 작업 분해 구조 (WBS, 일정, 체크리스트)
-│   ├── PACKAGE_STRUCTURE.md     # 패키지 구조 가이드
-│   ├── API.md                   # API 명세
-│   ├── ERD.md                   # 데이터베이스 설계
-│   ├── SEQUENCE.md              # 시퀀스 다이어그램
-│   ├── MVP-feature.md           # MVP 기능 범위
-│   ├── skillset.md              # 기술 스택
-│   ├── mindmap.md               # 시스템 구조 개요
-│   ├── SCAMPER.md               # 아이디어 도출
-│   └── SMART.md                 # 프로젝트 목표
-├── src/
-│   ├── main/
-│   │   ├── java/
-│   │   │   └── com/insurance/claim/
-│   │   │       ├── api/           # REST API Controllers
-│   │   │       ├── application/   # Application Services
-│   │   │       ├── domain/        # Domain Models
-│   │   │       ├── infrastructure/ # Kafka, Redis, DB
-│   │   │       └── config/        # Configuration
-│   │   └── resources/
-│   └── test/
-└── README.md
+claims-domain/              ← 순수 자바. Spring 의존성 0 (클래스패스에 없음)
+claims-application/         ← 유스케이스, 포트 정의
+claims-rules/               ← 심사 룰 엔진
+claims-adapter-web/         ← REST
+claims-adapter-persistence/ ← JPA, Flyway
+claims-adapter-messaging/   ← Kafka, Outbox 릴레이
+claims-adapter-policy/      ← business-support ACL
+claims-adapter-external/    ← 이체·알림·FDS (스텁)
+claims-bootstrap/           ← Spring Boot 앱
 ```
 
----
-
-## 시작하기
-
-### 필수 요구사항
-- Java 24
-- Gradle 7.x+
-- Docker & Docker Compose (로컬 개발 환경)
-
-### 로컬 환경 실행
-
-1. 인프라 실행 (Kafka, Redis, PostgreSQL)
-```bash
-docker compose up -d
-```
-
-| 서비스 | 이미지 | 호스트 포트 | 비고 |
-|--------|--------|-------------|------|
-| PostgreSQL | `postgres:15-alpine` | 5432 | DB/USER/PASSWORD = `claim` / `claim` / `changeme` |
-| Redis | `redis:7-alpine` | 6379 | 기본 설정 |
-| Zookeeper | `confluentinc/cp-zookeeper:7.5.0` | 2181 | Kafka 의존성 |
-| Kafka | `confluentinc/cp-kafka:7.5.0` | 9092 (호스트), 29092 (컨테이너 간) | 애플리케이션은 `localhost:9092` 사용 |
-| Kafka UI | `provectuslabs/kafka-ui:latest` | 8081 | http://localhost:8081 |
-
-> `docker compose down -v`로 전체 리소스를 종료/정리할 수 있습니다.
-
-2. 애플리케이션 빌드
-```bash
-./gradlew clean build
-```
-
-3. 애플리케이션 실행
-```bash
-./gradlew bootRun
-```
-
-4. API 테스트
-```bash
-curl http://localhost:8080/health
-```
-
-### 환경 변수 설정
-```bash
-# application.yml 또는 환경 변수로 설정
-DB_HOST=localhost
-DB_PORT=5432
-KAFKA_BOOTSTRAP_SERVERS=localhost:9092
-REDIS_HOST=localhost
-REDIS_PORT=6379
-```
-
----
-
-## 개발 워크플로우
-
-### 브랜치 전략
-- `main`: 프로덕션 배포 브랜치
-- `feat/#이슈번호`: 기능 개발
-- `fix/#이슈번호`: 버그 수정
-
-### 커밋 메시지 규칙
-
-| 타입 | 설명 | 예시 |
-|------|------|------|
-| feat | 새로운 기능 추가 | `feat: 보험금 청구 API 추가` |
-| fix | 버그 수정 | `fix: 중복 지급 방지 로직 수정` |
-| docs | 문서 변경 | `docs: API 명세 업데이트` |
-| refactor | 기능 변화 없는 코드 개선 | `refactor: 청구 서비스 책임 분리` |
-| test | 테스트 관련 작업 | `test: 청구 생성 시나리오 추가` |
-| chore | 빌드, 패키지 유지보수 | `chore: Kafka 의존성 업데이트` |
-
-> 커밋 메시지는 `타입: 내용` 형태로 작성하고, 내용은 명령형으로 간결하게 요약합니다.
-
----
-
-## 주요 설계 원칙
-
-### 1. 이벤트 기반 아키텍처
-- 모든 상태 변경은 이벤트로 발행
-- 서비스 간 느슨한 결합 유지
-- 장애 격리 및 독립 배포 가능
-
-### 2. 멱등성 보장
-- API 중복 호출 시 동일한 결과 반환
-- `If-Match` 헤더로 낙관적 락 구현
-- Kafka 메시지 재처리 안전성 확보
-
-### 3. 개인정보 보호
-- 민감 데이터 암호화 저장
-- 감사 로그 자동 기록
-- 접근 권한 최소화
-
-### 4. 관측 가능성
-- 모든 API 응답에 `traceId` 포함
-- 분산 추적으로 전체 흐름 가시화
-- SMART 지표 실시간 모니터링
+**의존 방향은 전부 도메인을 향한다.** 역방향은 Gradle이 컴파일을 거부하고, ArchUnit이 빌드를 깬다.
 
 ---
 
 ## 문서
 
-### 개발 계획
-- [구현 계획서 (IMPLEMENTATION_PLAN)](docs/IMPLEMENTATION_PLAN.md) - 구현 전략, 기술적 의사결정, 리스크 관리
-- [작업 분해 구조 (WBS)](docs/WBS.md) - Phase별 일정, Gantt Chart, 체크리스트
-- [패키지 구조 가이드 (PACKAGE_STRUCTURE)](docs/PACKAGE_STRUCTURE.md) - 레이어별 패키지 구조 및 예시 코드
+### 설계 (정본)
 
-### 시스템 설계
-- [시스템 구조 개요](docs/mindmap.md)
-- [API 명세](docs/API.md)
-- [데이터베이스 설계](docs/ERD.md)
-- [시퀀스 다이어그램](docs/SEQUENCE.md)
+| 문서 | 내용 |
+|---|---|
+| [00. 도메인 사전](docs/design/00-domain-glossary.md) | 실손 도메인 용어·세대별 구조·상태값·부지급 사유코드 |
+| [01. 컨텍스트 맵](docs/design/01-context-map.md) | **두 레포 경계**, 스냅샷 통합, 장애 격리 |
+| [02. 도메인 모델](docs/design/02-domain-model.md) | 애그리거트, 상태머신, 동시성 전략 |
+| [03. 심사 파이프라인](docs/design/03-adjudication.md) | **룰 카탈로그 8단계**, 계산 워크스루 |
+| [04. 이벤트·통합](docs/design/04-events-and-integration.md) | 이벤트 카탈로그, Outbox, 멱등성 3층 |
+| [05. API](docs/design/05-api.md) | REST 명세, 오류 코드 매핑 |
+| [06. 데이터 모델](docs/design/06-data-model.md) | 스키마, 암호화, 인덱스 근거 |
+| [07. 아키텍처](docs/design/07-architecture.md) | 모듈 구조, **아키텍처 강제 장치** |
+| [08. 로드맵](docs/design/08-roadmap.md) | Phase 0~6, 완료 조건 |
 
-### 프로젝트 기획
-- [MVP 기능 범위](docs/MVP-feature.md)
-- [기술 스택 선정](docs/skillset.md)
-- [프로젝트 목표 (SMART)](docs/SMART.md)
-- [아이디어 도출 (SCAMPER)](docs/SCAMPER.md)
+### 아카이브
+
+[`docs/archive/v1/`](docs/archive/v1/) — v1 기획·설계 문서.
+현재 설계와 내용이 다르므로 **참고용 이력**으로만 본다.
 
 ---
 
-## 라이센스
+## 시작하기
 
-이 프로젝트는 교육 및 포트폴리오 목적으로 작성되었습니다.
+> **Phase 0(골격) 완료.** 멀티모듈 구조·아키텍처 강제 장치·CI·Outbox 기반이 동작한다.
+> 업무 로직은 [로드맵](docs/design/08-roadmap.md) Phase 2부터 들어간다.
+> 선행 조건이던 business-support Phase 1(스냅샷 API)이 완료되어 **Phase 2를 시작할 수 있다.**
+
+### 요구사항
+
+- Java 21
+- Docker & Docker Compose
+
+### 실행
+
+```bash
+cp .env.example .env      # 비밀값 설정 (미설정 시 기동 실패)
+docker compose up -d      # PostgreSQL, Redis, Kafka(KRaft)
+./gradlew clean build
+./gradlew :claims-bootstrap:bootRun
+```
+
+### 검증
+
+```bash
+./gradlew build                                  # 전체 빌드 + 테스트
+./gradlew test --tests '*ArchitectureTest'       # 아키텍처 규칙
+./gradlew jacocoTestCoverageVerification         # 커버리지 게이트
+./gradlew contractTest                           # ★ business-support와의 계약
+```
+
+통합 테스트(Flyway 마이그레이션, Outbox 트랜잭션 원자성)는 Testcontainers로 돈다.
+**Docker가 없으면 실패가 아니라 skip** 되므로, 로컬에 Docker 없이도 빌드는 통과한다
+(`@Testcontainers(disabledWithoutDocker = true)`).
+
+> ⚠️ 그래서 **로컬 초록색은 증거가 아니다.** Docker 없이 돌리면 8건이 skip되고,
+> 그 8건이 이 저장소에서 실제로 사고를 잡아낸 테스트들이다. CI에서 확인할 것.
+
+심사 골든 케이스(`:claims-rules:test --tests '*GoldenCaseTest'`)는 Phase 3부터 생긴다.
+
+---
+
+## 개발 규약
+
+### 브랜치
+
+| 브랜치 | 용도 |
+|---|---|
+| `main` | 배포 기준 |
+| `develop` | 통합 |
+| `feat/#이슈` · `fix/#이슈` · `docs/#이슈` · `refactor/#이슈` | 작업 |
+
+`main`/`develop` 직접 푸시 금지. PR은 **CI 전체 통과 필수**.
+
+### 커밋
+
+```
+<type>: <내용> #<이슈번호>
+
+feat · fix · docs · refactor · test · chore
+```
+
+### 머지 전 체크
+
+```
+□ ./gradlew build 통과
+□ ArchUnit 규칙 통과
+□ contractTest 통과 (business-support와의 계약)
+□ 커버리지 게이트 통과 (도메인 브랜치 85% / 라인 90%)
+□ 골든 케이스 통과 (Phase 3부터, 심사 로직 변경 시)
+□ OpenAPI drift 없음 (Phase 6부터, API 변경 시)
+□ 해당 Phase의 완료 조건 체크리스트 충족
+```
+
+---
+
+## 이 설계가 v1에서 고친 것
+
+| v1 문제 | 재설계 |
+|---|---|
+| 상태 전이 API 미노출 (PENDING에서 못 벗어남) | 전체 상태머신 + 심사자 API |
+| 로깅 인자 순서 버그로 실명 평문 노출 | **타입 수준 마스킹** — `toString()`이 마스킹된 값 반환 |
+| 상태 전이 위반 → 500 | → **409 Conflict** |
+| 포트를 만들고 안 씀 (죽은 코드) | **ArchUnit이 빌드를 깬다** |
+| 트랜잭션 커밋 전 이벤트 발행 | **Transactional Outbox** |
+| Flyway 마이그레이션이 테스트에서 실행된 적 없음 | **Testcontainers + `ddl-auto: validate`** (H2 배제) |
+| 브랜치 커버리지 22%, 컨트롤러 8% | 커버리지 게이트 + MockMvc 테스트 |
+| CI 없음, 30초 셀프 머지 | GitHub Actions + 브랜치 보호 |
+| DB 비밀번호 평문 커밋 | 환경변수 + 기본값 없음 + 시크릿 스캐닝 |
+| 인증 전무 (전 엔드포인트 공개) | Phase 2부터 인증·인가 |
+| 문서와 코드 전면 불일치 | OpenAPI 생성 + CI drift 검사 |
+| 한도·보장연도 개념 부재 | `BenefitLedger` + 계약 응당일 기준 보장연도 |
+| `Money` scale=2 (원화에 부적합) | 원 단위 정수 |
+
+v1의 기획·설계 문서는 [`docs/archive/v1/`](docs/archive/v1/)에 이력으로 보관되어 있다.
+
+---
+
+## 라이선스
+
+교육 및 포트폴리오 목적으로 작성되었습니다.
+
+> 본 저장소의 약관 수치(자기부담률·최소공제금액·한도·지급기한)는 **설계 예시**이며,
+> 실제 상품 약관 및 관련 법령으로 검증되지 않았습니다. 실무 적용 시 반드시 확인이 필요합니다.
