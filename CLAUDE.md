@@ -9,7 +9,7 @@ Claude Code(claude.ai/code)가 이 저장소에서 작업할 때 참고하는 �
 - 짝 저장소: `hyunolike/insurance-business-support` (계약·언더라이팅 = 계약 정보의 원천)
 - 스택: Java 21 LTS, Spring Boot 3.x, PostgreSQL 15, Kafka, Redis
 - 아키텍처: DDD + 헥사고날, Gradle 멀티모듈, Transactional Outbox
-- **현재 상태: Phase 0(골격) 완료. 다음은 business-support Phase 1을 기다린 뒤 Phase 2**
+- **현재 상태: Phase 0(골격) 완료. business-support Phase 1(스냅샷 API)이 완료되어 Phase 2를 시작할 수 있다**
 
 ## 작업 전 반드시 읽을 것
 
@@ -99,7 +99,7 @@ feat · fix · docs · refactor · test · chore
 
 ```
 Phase 0  골격 (멀티모듈, ArchUnit, Testcontainers, CI)   ☑ 완료
-Phase 1  BS: 계약 모델 + 스냅샷 API                      ☐ (다른 저장소 — 선행 조건)
+Phase 1  BS: 계약 모델 + 스냅샷 API                      ☑ (다른 저장소 — 선행 조건 충족)
 Phase 2  청구 접수 + 스냅샷 연동                          ☐  ← 다음
 Phase 3  심사 엔진                                        ☐
 Phase 4  지급 + Outbox/Kafka                              ☐
@@ -112,12 +112,14 @@ Phase 6  운영 강화 (암호화, 감사, 관측성)                 ☐
 ```
 claims-domain/          shared/  DomainEvent · EventId(ULID) · AggregateRoot
                         shared/vo/  Money (원 단위 정수)
+                        policy/  SnapshotChecksum (BS와 합의한 알고리즘)
 claims-application/     port/out/  OutboxAppender
 claims-adapter-persistence/  outbox/  Entity · Repository · AppenderAdapter
                              db/migration/V1__baseline_infrastructure.sql
 claims-bootstrap/       ClaimsApplication · SecurityConfig
                         test/  ArchitectureTest · FlywayMigrationTest
                                OutboxAppenderIntegrationTest · IntegrationTestBase
+                               contract/  SnapshotChecksumContractTest (소비자 쪽)
 나머지 모듈              package-info.java 로 책임만 문서화 (Phase 2~4에서 채움)
 ```
 
