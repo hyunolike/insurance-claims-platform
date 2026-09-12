@@ -9,6 +9,7 @@ import com.insurance.claims.domain.shared.EventId;
 import com.insurance.claims.support.IntegrationTestBase;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -89,7 +90,10 @@ class OutboxAppenderIntegrationTest extends IntegrationTestBase {
         assertThat(row.get("attempts")).isEqualTo(0);
         assertThat((String) row.get("envelope"))
                 .contains("\"producer\":\"claims-platform\"")
-                .contains("\"eventType\":\"claim.received\"");
+                .contains("\"eventType\":\"claim.received\"")
+                // 페이로드는 이벤트가 손으로 만든 것이 그대로 실린다.
+                // 리플렉션 직렬화 시절에는 EventId에 게터가 없어 여기서 전부 터졌다.
+                .contains("\"payload\":{\"claimNo\":\"CLM-20260402-000003\"}");
     }
 
     @Test
@@ -128,6 +132,11 @@ class OutboxAppenderIntegrationTest extends IntegrationTestBase {
         @Override
         public String eventType() {
             return "claim.received";
+        }
+
+        @Override
+        public Map<String, Object> payload() {
+            return Map.of("claimNo", aggregateId);
         }
     }
 }
